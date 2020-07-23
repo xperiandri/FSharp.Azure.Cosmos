@@ -26,4 +26,25 @@ type FeedIterator<'T> with
                 yield item
     }
 
+    member iterator.AsAsyncEnumerableWithTags<'T>
+        ([<EnumeratorCancellation>] cancellationToken : CancellationToken) = asyncSeq {
+        while iterator.HasMoreResults do
+            let! page = iterator.ReadNextAsync(cancellationToken) |> Async.AwaitTask
+            for item in page do
+                cancellationToken.ThrowIfCancellationRequested()
+                yield struct (item, page.ETag)
+    }
+
+    member iterator.AsAsyncEnumerableWithTags<'T> () = asyncSeq {
+        let! ct = Async.CancellationToken
+        while iterator.HasMoreResults do
+            let! page = iterator.ReadNextAsync(ct) |> Async.AwaitTask
+            for item in page do
+                ct.ThrowIfCancellationRequested()
+                yield struct (item, page.ETag)
+    }
+
+
 let ofFeedIterator<'T> (iterator : FeedIterator<'T>) = iterator.AsAsyncEnumerable<'T>()
+
+let ofFeedIteratorWithTags<'T> (iterator : FeedIterator<'T>) = iterator.AsAsyncEnumerableWithTags<'T>()
