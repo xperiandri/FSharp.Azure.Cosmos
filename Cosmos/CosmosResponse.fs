@@ -20,7 +20,7 @@ module CosmosResponse =
         { HttpStatusCode = response.StatusCode
           Headers = response.Headers
           Result = successFn response.Resource
-          Diagnostics = response.Diagnostics } : CosmosResponse<'r>
+          Diagnostics = response.Diagnostics }
 
     let fromException resultFn (ex : CosmosException) =
         { HttpStatusCode = ex.StatusCode

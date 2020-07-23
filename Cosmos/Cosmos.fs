@@ -49,7 +49,6 @@ type ReplaceResult<'t> =
     | Ok of 't
     | BadRequest of ResponseBody : string // 400
     | NotFound of ResponseBody : string // 404
-    | Conflict of ResponseBody : string // 409
     | ModifiedBefore of ResponseBody : string //412 - need re-do
     | EntityTooLarge of ResponseBody : string // 413
 
@@ -94,7 +93,6 @@ module Operations =
         match ex.StatusCode with
         | HttpStatusCode.BadRequest -> ReplaceResult.BadRequest ex.ResponseBody
         | HttpStatusCode.NotFound -> ReplaceResult.NotFound ex.ResponseBody
-        | HttpStatusCode.Conflict -> ReplaceResult.Conflict ex.ResponseBody
         | HttpStatusCode.PreconditionFailed  -> ReplaceResult.ModifiedBefore ex.ResponseBody
         | HttpStatusCode.RequestEntityTooLarge -> ReplaceResult.EntityTooLarge ex.ResponseBody
         | _ -> raise ex
