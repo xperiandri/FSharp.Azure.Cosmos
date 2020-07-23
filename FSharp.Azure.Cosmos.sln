@@ -1,0 +1,38 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30223.230
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Cosmos", "Cosmos\Cosmos.fsproj", "{A888822D-96BD-46D9-A840-36F7D3CE9BDA}"
+EndProject
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Cosmos.Tests", "Cosmos.Tests\Cosmos.Tests.fsproj", "{B1D99CBF-D61D-4047-BE6E-9B53B832D02D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2E51F0A9-7748-471C-BBF4-AE0B9F600FB0}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		README.md = README.md
+		Solution.Build.props = Solution.Build.props
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A888822D-96BD-46D9-A840-36F7D3CE9BDA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A888822D-96BD-46D9-A840-36F7D3CE9BDA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A888822D-96BD-46D9-A840-36F7D3CE9BDA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A888822D-96BD-46D9-A840-36F7D3CE9BDA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B1D99CBF-D61D-4047-BE6E-9B53B832D02D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B1D99CBF-D61D-4047-BE6E-9B53B832D02D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B1D99CBF-D61D-4047-BE6E-9B53B832D02D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B1D99CBF-D61D-4047-BE6E-9B53B832D02D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8C72B069-0B77-46C7-9477-CA6DF9A86706}
+	EndGlobalSection
+EndGlobal

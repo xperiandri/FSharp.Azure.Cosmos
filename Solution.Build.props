@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <AssemblyBaseName>FSharp.Azure.Cosmos</AssemblyBaseName>
+  </PropertyGroup>
+</Project>

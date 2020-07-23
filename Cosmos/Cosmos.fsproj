@@ -1,0 +1,54 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\Solution.Build.props" />
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>$(AssemblyBaseName)</AssemblyName>
+    <PackageId>$(AssemblyBaseName)</PackageId>
+
+    <Authors>Andrii Chebukin</Authors>
+    <Summary>F# API for using Microsoft Azure Cosmos DB service via Core API</Summary>
+    <Description>F# API for using Microsoft Azure Cosmos DB service via Core API</Description>
+    <Copyright>Copyright 2020</Copyright>
+    <PackageLicenseUrl>https://github.com/xperiandri/FSharp.Azure.Cosmos/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/xperiandri/FSharp.Azure.Cosmos</PackageProjectUrl>
+    <!--<PackageIconUrl></PackageIconUrl>-->
+    <PackageTags>F#;FSharp;Cosmos;CosmosDB;Cosmos DB;Cosmos SQL;Core API</PackageTags>
+    <IncludeSymbols>true</IncludeSymbols>
+    <RepositoryUrl>https://github.com/xperiandri/FSharp.Azure.Cosmos</RepositoryUrl>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Optional: Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+
+    <!-- Optional: Build symbol package (.snupkg) to distribute the PDB containing Source Link -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>symbols.nupkg</SymbolPackageFormat>
+
+    <!-- Read Release Notes from RELEASE_NOTES.md (cref https://dev.to/j_sakamoto/writing-a-nuget-package-release-notes-in-an-outside-of-a-csproj-file-3f94) -->
+    <!--<Target Name="PreparePackageReleaseNotesFromFile" BeforeTargets="GenerateNuspec">
+      <ReadLinesFromFile File="..\..\RELEASE_NOTES.md">
+        <Output TaskParameter="Lines" ItemName="ReleaseNoteLines" />
+      </ReadLinesFromFile>
+      <PropertyGroup>
+        <PackageReleaseNotes>@(ReleaseNoteLines, '%0a')</PackageReleaseNotes>
+      </PropertyGroup>
+    </Target>-->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="AsyncSeq.fs" />
+    <Compile Include="CosmosResponse.fs" />
+    <Compile Include="Cosmos.fs" />
+    <Compile Include="Builders.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.Control.AsyncSeq" Version="2.0.24" />
+    <PackageReference Include="FSharp.Control.FusionTasks" Version="2.0.2" />
+    <PackageReference Include="FsToolkit.ErrorHandling" Version="1.4.0" />
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.10.1" />
+    <PackageReference Include="System.Linq.Async" Version="4.1.1" />
+  </ItemGroup>
+
+</Project>
