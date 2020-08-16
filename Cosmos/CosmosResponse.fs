@@ -27,3 +27,7 @@ module CosmosResponse =
           Headers = ex.Headers
           Result = resultFn ex
           Diagnostics = ex.Diagnostics }
+
+    let toException<'t> (t : CosmosResponse<'t>) =
+        let ex = new CosmosException("", t.HttpStatusCode, 0, "", 0.0)
+        ex

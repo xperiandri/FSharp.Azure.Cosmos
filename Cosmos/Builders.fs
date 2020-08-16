@@ -68,6 +68,31 @@ type ReplaceBuilder<'a>() =
             let options = ItemRequestOptions (IfMatchEtag = eTag)
             { state with RequestOptions = ValueSome options }
 
+type ReplaceConcurrentlyBuilder<'a, 'e>() =
+    member __.Yield _ =
+        {
+            Id = String.Empty
+            PartitionKey = ValueNone
+            Update = fun u -> async { return Result<'a, 'e>.Ok u }
+        } : ReplaceConcurrentlyOperation<'a, 'e>
+
+    /// Sets the item being to replace existing with
+    [<CustomOperation "id">]
+    member __.Id (state : ReplaceConcurrentlyOperation<_,_>, id) = { state with Id = id }
+
+    /// Sets the partition key
+    [<CustomOperation "partitionKey">]
+    member __.PartitionKey (state : ReplaceConcurrentlyOperation<_,_>, partitionKey: PartitionKey) = { state with PartitionKey = ValueSome partitionKey }
+
+    /// Sets the partition key
+    [<CustomOperation "partitionKeyValue">]
+    member __.PartitionKeyValue (state : ReplaceConcurrentlyOperation<_,_>, partitionKey: string) = { state with PartitionKey = ValueSome (PartitionKey partitionKey) }
+
+    /// Sets the partition key
+    [<CustomOperation "update">]
+    member __.Update (state : ReplaceConcurrentlyOperation<_,_>, update: 'a->Async<Result<'a, 't>>) =  state
+
+
 type UpsertBuilder<'a>() =
     member __.Yield _ =
         {
@@ -153,6 +178,7 @@ type ReadBuilder<'a>() =
 
 let create<'a> = CreateBuilder<'a>()
 let replace<'a> = ReplaceBuilder<'a>()
+let replaceConcurrenly<'a, 'e> = ReplaceConcurrentlyBuilder<'a, 'e>()
 let upsert<'a> = UpsertBuilder<'a>()
 let delete = DeleteBuilder()
 let read<'a> = ReadBuilder<'a>()
