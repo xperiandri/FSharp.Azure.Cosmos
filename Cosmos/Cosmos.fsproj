@@ -40,15 +40,23 @@
     <Compile Include="AsyncSeq.fs" />
     <Compile Include="CosmosResponse.fs" />
     <Compile Include="Cosmos.fs" />
-    <Compile Include="Builders.fs" />
+    <Compile Include="Create.fs" />
+    <Compile Include="Upsert.fs" />
+    <Compile Include="Replace.fs" />
+    <Compile Include="Delete.fs" />
+    <Compile Include="Read.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FSharp.Control.AsyncSeq" Version="2.0.24" />
     <PackageReference Include="FSharp.Control.FusionTasks" Version="2.0.2" />
-    <PackageReference Include="FsToolkit.ErrorHandling" Version="1.4.0" />
-    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.10.1" />
+    <PackageReference Include="FsToolkit.ErrorHandling" Version="1.4.3" />
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.12.0" />
     <PackageReference Include="System.Linq.Async" Version="4.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="4.7.2" />
   </ItemGroup>
 
 </Project>
