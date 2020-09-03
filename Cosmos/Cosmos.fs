@@ -46,47 +46,14 @@ module Operations =
     let (|HandleException|_|) (ex : Exception) =
         handleException ex
 
-
-    let inline asyncExecuteConcurrently< ^operation, ^result, 'value, 'error
-                                    when ^operation : (member Id : string)
-                                     and ^operation : (member PartitionKey : PartitionKey voption)
-                                     and ^operation : (member Update : FSharpFunc<'value, Async<Result<'value, 'error>>>)>
-        (toErrorResult : CosmosException -> ^result, okCtor, customErrorCtor)
-        (container : Container)
-        (operation : ^operation, maxRetryCount : int, currentAttemptCount : int) : Async<CosmosResponse< ^result>> =
-
-        let rec asyncExecuteConcurrently (toErrorResult, okCtor, customErrorCtor)
-                                         (container : Container)
-                                         (operation, maxRetryCount, currentAttemptCount) = async {
-
-            let retryUpdate (e : CosmosException) =
-                match e.StatusCode with
-                | HttpStatusCode.PreconditionFailed when currentAttemptCount >= maxRetryCount ->
-                    CosmosResponse.fromException toErrorResult e |> async.Return
-                | HttpStatusCode.PreconditionFailed ->
-                    asyncExecuteConcurrently (toErrorResult, okCtor, customErrorCtor) container (operation, maxRetryCount, currentAttemptCount + 1)
-                | _ ->
-                    CosmosResponse.fromException toErrorResult e |> async.Return
-
-            let! ct = Async.CancellationToken
-
-            try
-                let! response = container.ReadItemAsync<'value>((^operation : (member Id : string) operation),
-                                                            (^operation : (member PartitionKey : PartitionKey voption) operation).Value,
-                                                            cancellationToken = ct)
-                let eTag = response.ETag
-                let update = (^operation : (member Update : FSharpFunc<'value,Async<Result<'value, 'error>>>) operation)
-                let! itemUpdateResult = update response.Resource
-                match itemUpdateResult with
-                | Result.Error e -> return CosmosResponse.fromItemResponse (fun _ -> customErrorCtor e) response
-                | Result.Ok item ->
-                    let updateOptions = new ItemRequestOptions(IfMatchEtag = eTag)
-                    let! response = container.ReplaceItemAsync<'value>(item, (^operation : (member Id : string) operation), requestOptions = updateOptions, cancellationToken = ct)
-                    return CosmosResponse.fromItemResponse okCtor response
-            with
-            | HandleException ex -> return! retryUpdate ex
-        }
-        asyncExecuteConcurrently (toErrorResult, okCtor, customErrorCtor) (container) (operation, maxRetryCount, currentAttemptCount)
+    let retryUpdate toErrorResult asyncExecuteConcurrently maxRetryCount currentAttemptCount (e : CosmosException) =
+        match e.StatusCode with
+        | HttpStatusCode.PreconditionFailed when currentAttemptCount >= maxRetryCount ->
+            CosmosResponse.fromException toErrorResult e |> async.Return
+        | HttpStatusCode.PreconditionFailed ->
+            asyncExecuteConcurrently maxRetryCount (currentAttemptCount + 1)
+        | _ ->
+            CosmosResponse.fromException toErrorResult e |> async.Return
 
     type Microsoft.Azure.Cosmos.Container with
 

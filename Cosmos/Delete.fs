@@ -15,7 +15,7 @@ type DeleteBuilder() =
     member __.Yield _ =
         {
             Id = String.Empty
-            PartitionKey = Unchecked.defaultof<_>
+            PartitionKey = PartitionKey.None
             RequestOptions = ValueNone
         } : DeleteOperation
 

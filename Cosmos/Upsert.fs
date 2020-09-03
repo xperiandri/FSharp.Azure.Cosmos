@@ -13,7 +13,7 @@ type UpsertOperation<'a> =
 type UpsertConcurrentlyOperation<'a, 'e> =
     { Id : string
       PartitionKey : PartitionKey voption
-      Update : 'a -> Async<Result<'a, 'e>> }
+      UpdateOrCreate : 'a option -> Async<Result<'a, 'e>> }
 
 open System
 
@@ -57,7 +57,7 @@ type UpsertConcurrentlyBuilder<'a, 'e>() =
         {
             Id = String.Empty
             PartitionKey = ValueNone
-            Update = fun u -> async { return Result<'a, 'e>.Ok u }
+            UpdateOrCreate = (function Some u -> Result.Ok u | None -> Error (Unchecked.defaultof<'e>)) >> async.Return
         } : UpsertConcurrentlyOperation<'a, 'e>
 
     /// Sets the item being to upsert existing with
@@ -73,8 +73,8 @@ type UpsertConcurrentlyBuilder<'a, 'e>() =
     member __.PartitionKeyValue (state : UpsertConcurrentlyOperation<_,_>, partitionKey: string) = { state with PartitionKey = ValueSome (PartitionKey partitionKey) }
 
     /// Sets the partition key
-    [<CustomOperation "update">]
-    member __.Update (state : UpsertConcurrentlyOperation<_,_>, update: 'a->Async<Result<'a, 't>>) =  state
+    [<CustomOperation "updateOrCreate">]
+    member __.UpdateOrCreate (state : UpsertConcurrentlyOperation<_,_>, update: 'a option -> Async<Result<'a, 't>>) = state
 
 let upsert<'a> = UpsertBuilder<'a>()
 let upsertConcurrenly<'a, 'e> = UpsertConcurrentlyBuilder<'a, 'e>()
@@ -109,6 +109,50 @@ let private toUpsertConcurrentlyErrorResult (ex : CosmosException) =
     | HttpStatusCode.RequestEntityTooLarge -> UpsertConcurrentResult.EntityTooLarge ex.ResponseBody
     | _ -> raise ex
 
+let rec asyncExecuteConcurrently<'value, 'error>
+        (container : Container)
+        (operation : UpsertConcurrentlyOperation<'value, 'error>)
+        (maxRetryCount : int)
+        (currentAttemptCount : int) : Async<CosmosResponse<UpsertConcurrentResult<'value, 'error>>> = async {
+
+    let retryUpdate =
+        retryUpdate toUpsertConcurrentlyErrorResult
+                    (asyncExecuteConcurrently container operation)
+                    maxRetryCount currentAttemptCount
+
+    let! ct = Async.CancellationToken
+
+    let! itemResult, response = async {
+        let partitionKey =
+            match operation.PartitionKey with
+            | ValueSome partitionKey -> partitionKey
+            | ValueNone -> PartitionKey.None
+        try
+            let! response = container.ReadItemAsync<'value>(operation.Id, partitionKey, cancellationToken = ct)
+            let! itemResult = operation.UpdateOrCreate (Some response.Resource)
+            return itemResult, Choice1Of2 response
+        with
+        | HandleException ex when ex.StatusCode = HttpStatusCode.NotFound ->
+            let! itemResult = operation.UpdateOrCreate None
+            return itemResult, Choice2Of2 ex
+    }
+
+    try
+        match itemResult, response with
+        | Result.Error e, Choice1Of2 response -> return CosmosResponse.fromItemResponse (fun _ -> CustomError e) response
+        | Result.Error e, Choice2Of2 ex -> return CosmosResponse.fromException (fun _ -> CustomError e) ex
+        | Result.Ok item, Choice1Of2 response ->
+            let updateOptions = ItemRequestOptions (IfMatchEtag = response.ETag)
+            let! response = container.UpsertItemAsync<'value>(item, operation.PartitionKey |> ValueOption.toNullable, requestOptions = updateOptions, cancellationToken = ct)
+            return CosmosResponse.fromItemResponse Ok response
+        | Result.Ok item, Choice2Of2 ex ->
+            let! response = container.UpsertItemAsync<'value>(item, operation.PartitionKey |> ValueOption.toNullable, cancellationToken = ct)
+            return CosmosResponse.fromItemResponse Ok response
+    with
+    | HandleException ex -> return! retryUpdate ex
+}
+
+
 open System.Runtime.InteropServices
 
 type Microsoft.Azure.Cosmos.Container with
@@ -129,11 +173,8 @@ type Microsoft.Azure.Cosmos.Container with
     member container.AsyncExecute<'a> (operation : UpsertOperation<'a>) =
         container.AsyncExecute (getOptions, operation)
 
-    member container.AsyncExecuteUnsafe<'a> (operation : UpsertOperation<'a>) =
+    member container.AsyncExecuteOverwrite<'a> (operation : UpsertOperation<'a>) =
         container.AsyncExecute (ValueOption.toObj, operation)
 
     member container.AsyncExecuteConcurrently<'a,'e> (operation : UpsertConcurrentlyOperation<'a,'e>, [<Optional;DefaultParameterValue(10)>] maxRetryCount : int) =
-        asyncExecuteConcurrently<UpsertConcurrentlyOperation<'a,'e>, UpsertConcurrentResult<'a, 'e>, 'a, 'e>
-            (toUpsertConcurrentlyErrorResult, Ok, CustomError)
-            container
-            (operation, maxRetryCount, 0)
+        asyncExecuteConcurrently<'a, 'e> container operation maxRetryCount 0

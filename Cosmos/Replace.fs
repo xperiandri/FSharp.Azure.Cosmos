@@ -63,7 +63,7 @@ type ReplaceConcurrentlyBuilder<'a, 'e>() =
         {
             Id = String.Empty
             PartitionKey = ValueNone
-            Update = fun u -> async { return Result<'a, 'e>.Ok u }
+            Update = fun u -> u |> Result<'a, 'e>.Ok |> async.Return
         } : ReplaceConcurrentlyOperation<'a, 'e>
 
     /// Sets the item being to replace existing with
@@ -120,6 +120,37 @@ let private toReplaceConcurrentlyErrorResult (ex : CosmosException) =
     | _ -> raise ex
 
 
+let rec asyncExecuteConcurrently<'value, 'error>
+        (container : Container)
+        (operation : ReplaceConcurrentlyOperation<'value, 'error>)
+        (maxRetryCount : int)
+        (currentAttemptCount : int) : Async<CosmosResponse<ReplaceConcurrentResult<'value, 'error>>> = async {
+
+    let retryUpdate =
+        retryUpdate toReplaceConcurrentlyErrorResult
+                    (asyncExecuteConcurrently container operation)
+                    maxRetryCount currentAttemptCount
+
+    let! ct = Async.CancellationToken
+
+    try
+        let partitionKey =
+            match operation.PartitionKey with
+            | ValueSome partitionKey -> partitionKey
+            | ValueNone -> PartitionKey.None
+        let! response = container.ReadItemAsync<'value>(operation.Id, partitionKey, cancellationToken = ct)
+        let eTag = response.ETag
+        let! itemUpdateResult = operation.Update response.Resource
+        match itemUpdateResult with
+        | Result.Error e -> return CosmosResponse.fromItemResponse (fun _ -> CustomError e) response
+        | Result.Ok item ->
+            let updateOptions = new ItemRequestOptions (IfMatchEtag = eTag)
+            let! response = container.ReplaceItemAsync<'value>(item, operation.Id, requestOptions = updateOptions, cancellationToken = ct)
+            return CosmosResponse.fromItemResponse Ok response
+    with
+    | HandleException ex -> return! retryUpdate ex
+}
+
 open System.Runtime.InteropServices
 
 type Microsoft.Azure.Cosmos.Container with
@@ -141,11 +172,8 @@ type Microsoft.Azure.Cosmos.Container with
     member container.AsyncExecute<'a> (operation : ReplaceOperation<'a>) =
         container.AsyncExecute (getOptions, operation)
 
-    member container.AsyncExecuteUnsafe<'a> (operation : ReplaceOperation<'a>) =
+    member container.AsyncExecuteOverwrite<'a> (operation : ReplaceOperation<'a>) =
         container.AsyncExecute (ValueOption.toObj, operation)
 
     member container.AsyncExecuteConcurrently<'a,'e> (operation : ReplaceConcurrentlyOperation<'a,'e>, [<Optional;DefaultParameterValue(10)>] maxRetryCount : int) =
-        asyncExecuteConcurrently<ReplaceConcurrentlyOperation<'a,'e>, ReplaceConcurrentResult<'a, 'e>, 'a, 'e>
-            (toReplaceConcurrentlyErrorResult, Ok, CustomError)
-            container
-            (operation, maxRetryCount, 0)
+        asyncExecuteConcurrently<'a, 'e> container operation maxRetryCount 0
