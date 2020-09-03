@@ -35,6 +35,8 @@ type DeleteBuilder() =
     [<CustomOperation "requestOptions">]
     member __.RequestOptions (state : DeleteOperation, options: ItemRequestOptions) = { state with RequestOptions = ValueSome options }
 
+let delete = DeleteBuilder ()
+
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
 type DeleteResult<'t> =
