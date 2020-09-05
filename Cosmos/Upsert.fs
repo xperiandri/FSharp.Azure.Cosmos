@@ -57,7 +57,7 @@ type UpsertConcurrentlyBuilder<'a, 'e>() =
         {
             Id = String.Empty
             PartitionKey = ValueNone
-            UpdateOrCreate = (function Some u -> Result.Ok u | None -> Error (Unchecked.defaultof<'e>)) >> async.Return
+            UpdateOrCreate = function _ -> raise <| MissingMethodException ("Update function is not set for concurrent upsert operation")
         } : UpsertConcurrentlyOperation<'a, 'e>
 
     /// Sets the item being to upsert existing with
@@ -66,15 +66,18 @@ type UpsertConcurrentlyBuilder<'a, 'e>() =
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member __.PartitionKey (state : UpsertConcurrentlyOperation<_,_>, partitionKey: PartitionKey) = { state with PartitionKey = ValueSome partitionKey }
+    member __.PartitionKey (state : UpsertConcurrentlyOperation<_,_>, partitionKey: PartitionKey) =
+        { state with PartitionKey = ValueSome partitionKey }
 
     /// Sets the partition key
     [<CustomOperation "partitionKeyValue">]
-    member __.PartitionKeyValue (state : UpsertConcurrentlyOperation<_,_>, partitionKey: string) = { state with PartitionKey = ValueSome (PartitionKey partitionKey) }
+    member __.PartitionKeyValue (state : UpsertConcurrentlyOperation<_,_>, partitionKey: string) =
+        { state with PartitionKey = ValueSome (PartitionKey partitionKey) }
 
     /// Sets the partition key
     [<CustomOperation "updateOrCreate">]
-    member __.UpdateOrCreate (state : UpsertConcurrentlyOperation<_,_>, update: 'a option -> Async<Result<'a, 't>>) = state
+    member __.UpdateOrCreate (state : UpsertConcurrentlyOperation<_,_>, update : 'a option -> Async<Result<'a, 't>>) =
+        { state with UpdateOrCreate = update }
 
 let upsert<'a> = UpsertBuilder<'a>()
 let upsertConcurrenly<'a, 'e> = UpsertConcurrentlyBuilder<'a, 'e>()

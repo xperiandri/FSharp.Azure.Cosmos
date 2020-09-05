@@ -63,7 +63,7 @@ type ReplaceConcurrentlyBuilder<'a, 'e>() =
         {
             Id = String.Empty
             PartitionKey = ValueNone
-            Update = fun u -> u |> Result<'a, 'e>.Ok |> async.Return
+            Update = fun _ -> raise <| MissingMethodException ("Update function is not set for concurrent upsert operation")
         } : ReplaceConcurrentlyOperation<'a, 'e>
 
     /// Sets the item being to replace existing with
@@ -80,7 +80,7 @@ type ReplaceConcurrentlyBuilder<'a, 'e>() =
 
     /// Sets the partition key
     [<CustomOperation "update">]
-    member __.Update (state : ReplaceConcurrentlyOperation<_,_>, update: 'a->Async<Result<'a, 't>>) =  state
+    member __.Update (state : ReplaceConcurrentlyOperation<_,_>, update : 'a->Async<Result<'a, 't>>) = { state with Update = update }
 
 let replace<'a> = ReplaceBuilder<'a>()
 let replaceConcurrenly<'a, 'e> = ReplaceConcurrentlyBuilder<'a, 'e>()
