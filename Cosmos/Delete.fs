@@ -53,6 +53,9 @@ let private toDeleteResult (ex : CosmosException) =
 type Microsoft.Azure.Cosmos.Container with
 
     member container.AsyncExecute (operation : DeleteOperation) = async {
+        if String.IsNullOrEmpty operation.Id then invalidArg "id" "Delete operation requires Id"
+        if operation.PartitionKey = Unchecked.defaultof<PartitionKey> then invalidArg "partitionKey" "Delete operation requires PartitionKey"
+
         let! ct = Async.CancellationToken
         try
             let! response = container.DeleteItemAsync(operation.Id,

@@ -55,6 +55,8 @@ let private toCreateResult (ex : CosmosException) =
 type Microsoft.Azure.Cosmos.Container with
 
     member container.AsyncExecute<'a> (operation : CreateOperation<'a>) : Async<CosmosResponse<CreateResult<'a>>> = async {
+        if operation.Item = Unchecked.defaultof<'a> then invalidArg "item" "No item to create specified"
+
         let! ct = Async.CancellationToken
         try
             let! response = container.CreateItemAsync<'a>(operation.Item,

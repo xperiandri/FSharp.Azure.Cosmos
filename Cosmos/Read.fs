@@ -53,6 +53,9 @@ let private toReadResult notFoundResultCtor (ex : CosmosException) =
 type Microsoft.Azure.Cosmos.Container with
 
     member container.AsyncExecute(operation : ReadOperation<'a>, success, failure) = async {
+        if String.IsNullOrEmpty operation.Id then invalidArg "id" "Read operation requires Id"
+        if operation.PartitionKey = Unchecked.defaultof<PartitionKey> then invalidArg "partitionKey" "Read operation requires PartitionKey"
+
         let! ct = Async.CancellationToken
         try
             let! result = container.ReadItemAsync<'a>(operation.Id,

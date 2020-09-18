@@ -161,6 +161,8 @@ open System.Runtime.InteropServices
 type Microsoft.Azure.Cosmos.Container with
 
     member private container.AsyncExecute<'a> (getOptions, operation : UpsertOperation<'a>) = async {
+        if operation.Item = Unchecked.defaultof<'a> then invalidArg "item" "No item to upsert specified"
+
         let options = getOptions operation.RequestOptions
         let! ct = Async.CancellationToken
         try
@@ -174,6 +176,10 @@ type Microsoft.Azure.Cosmos.Container with
     }
 
     member container.AsyncExecute<'a> (operation : UpsertOperation<'a>) =
+        match operation.RequestOptions with
+        | ValueNone -> invalidArg "eTag" "Safe replace requires ETag"
+        | ValueSome options when String.IsNullOrEmpty options.IfMatchEtag -> invalidArg "eTag" "Safe replace requires ETag"
+        | _ -> ()
         container.AsyncExecute (getOptions, operation)
 
     member container.AsyncExecuteOverwrite<'a> (operation : UpsertOperation<'a>) =
