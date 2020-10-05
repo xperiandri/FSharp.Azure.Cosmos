@@ -45,13 +45,14 @@
     <Compile Include="Replace.fs" />
     <Compile Include="Delete.fs" />
     <Compile Include="Read.fs" />
+    <Compile Include="UniqueKey.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FSharp.Control.AsyncSeq" Version="2.0.24" />
     <PackageReference Include="FSharp.Control.FusionTasks" Version="2.0.2" />
     <PackageReference Include="FsToolkit.ErrorHandling" Version="1.4.3" />
-    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.12.0" />
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.13.0" />
     <PackageReference Include="System.Linq.Async" Version="4.1.1" />
   </ItemGroup>
 
