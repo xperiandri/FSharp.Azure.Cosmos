@@ -8,7 +8,7 @@ open Microsoft.Azure.Cosmos
 [<AutoOpen>]
 module Operations =
 
-    let handleStatusCode statusCode =
+    let canHandleStatusCode statusCode =
         match statusCode with
         | HttpStatusCode.BadRequest
         | HttpStatusCode.NotFound
@@ -27,18 +27,18 @@ module Operations =
 
     let toCosmosException (ex : Exception) =
         match ex with
-            | :? CosmosException as ex -> Some ex
-            | :? AggregateException as ex ->
-                match ex.InnerException with
-                | :? CosmosException as cex -> Some cex
-                | _ -> None
+        | :? CosmosException as ex -> Some ex
+        | :? AggregateException as ex ->
+            match ex.InnerException with
+            | :? CosmosException as cex -> Some cex
             | _ -> None
+        | _ -> None
 
     let handleException (ex : Exception) =
         let cosmosException = toCosmosException ex
         match cosmosException with
-            | Some ex when handleStatusCode ex.StatusCode -> Some ex
-            | _ -> None
+        | Some ex when canHandleStatusCode ex.StatusCode -> Some ex
+        | _ -> None
 
     let (|CosmosException|_|) (ex : Exception) =
         toCosmosException ex
@@ -62,8 +62,8 @@ module Operations =
                 QueryDefinition(
                    "SELECT VALUE COUNT(1) \
                     FROM item \
-                    WHERE item.id = @ID")
-                    .WithParameter("@ID", id)
+                    WHERE item.id = @Id")
+                    .WithParameter("@Id", id)
             let! count =
                 container.GetItemQueryIterator<int>(query)
                 |> AsyncSeq.ofFeedIterator
@@ -76,8 +76,8 @@ module Operations =
                 QueryDefinition(
                     "SELECT VALUE COUNT(1) \
                      FROM item \
-                     WHERE item.id = @ID AND IS_NULL(item."+deletedFieldName+")")
-                    .WithParameter("@ID", id)
+                     WHERE item.id = @Id AND IS_NULL(item."+deletedFieldName+")")
+                    .WithParameter("@Id", id)
             let! count =
                 container.GetItemQueryIterator<int>(query)
                 |> AsyncSeq.ofFeedIterator
