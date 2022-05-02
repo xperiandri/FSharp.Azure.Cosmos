@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
     <AssemblyBaseName>FSharp.Azure.Cosmos</AssemblyBaseName>
+    <LangVersion>6.0</LangVersion>
   </PropertyGroup>
 </Project>

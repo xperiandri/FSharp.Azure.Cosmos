@@ -1,15 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\Solution.Build.props" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>$(AssemblyBaseName)</AssemblyName>
-    <PackageId>$(AssemblyBaseName)</PackageId>
+    <PackageId>FSharp.Azure.Cosmos</PackageId>
 
     <Authors>Andrii Chebukin</Authors>
     <Summary>F# API for using Microsoft Azure Cosmos DB service via Core API</Summary>
     <Description>F# API for using Microsoft Azure Cosmos DB service via Core API</Description>
-    <Copyright>Copyright 2020</Copyright>
+    <Copyright>Copyright 2022</Copyright>
     <PackageLicenseUrl>https://github.com/xperiandri/FSharp.Azure.Cosmos/LICENSE</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/xperiandri/FSharp.Azure.Cosmos</PackageProjectUrl>
     <!--<PackageIconUrl></PackageIconUrl>-->
@@ -49,15 +48,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Control.AsyncSeq" Version="2.0.24" />
-    <PackageReference Include="FSharp.Control.FusionTasks" Version="2.0.2" />
-    <PackageReference Include="FsToolkit.ErrorHandling" Version="2.0.0" />
-    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.16.0" />
-    <PackageReference Include="System.Linq.Async" Version="4.1.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Update="FSharp.Core" Version="4.7.2" />
+    <PackageReference Include="FSharp.Control.AsyncSeq" />
+    <PackageReference Include="FSharp.Control.FusionTasks" />
+    <PackageReference Include="FsToolkit.ErrorHandling" />
+    <PackageReference Include="Microsoft.Azure.Cosmos" />
+    <PackageReference Include="System.Linq.Async" />
   </ItemGroup>
 
 </Project>
