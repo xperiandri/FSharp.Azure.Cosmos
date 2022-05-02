@@ -42,6 +42,7 @@
     <Compile Include="Create.fs" />
     <Compile Include="Upsert.fs" />
     <Compile Include="Replace.fs" />
+    <Compile Include="Patch.fs" />
     <Compile Include="Delete.fs" />
     <Compile Include="Read.fs" />
     <Compile Include="UniqueKey.fs" />

@@ -19,7 +19,7 @@ type ReplaceConcurrentlyOperation<'a,'e> =
 open System
 
 type ReplaceBuilder<'a>() =
-    member __.Yield _ =
+    member _.Yield _ =
         {
             Item = Unchecked.defaultof<_>
             Id = String.Empty
@@ -29,27 +29,27 @@ type ReplaceBuilder<'a>() =
 
     /// Sets the item being to replace existing with
     [<CustomOperation "item">]
-    member __.Item (state : ReplaceOperation<_>, item) = { state with Item = item }
+    member _.Item (state : inref<ReplaceOperation<_>>, item) = { state with Item = item }
 
     /// Sets the item being to replace existing with
     [<CustomOperation "id">]
-    member __.Id (state : ReplaceOperation<_>, id) = { state with Id = id }
+    member _.Id (state : inref<ReplaceOperation<_>>, id) = { state with Id = id }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member __.PartitionKey (state : ReplaceOperation<_>, partitionKey: PartitionKey) = { state with PartitionKey = ValueSome partitionKey }
+    member _.PartitionKey (state : inref<ReplaceOperation<_>>, partitionKey: PartitionKey) = { state with PartitionKey = ValueSome partitionKey }
 
     /// Sets the partition key
     [<CustomOperation "partitionKeyValue">]
-    member __.PartitionKeyValue (state : ReplaceOperation<_>, partitionKey: string) = { state with PartitionKey = ValueSome (PartitionKey partitionKey) }
+    member _.PartitionKeyValue (state : inref<ReplaceOperation<_>>, partitionKey: string) = { state with PartitionKey = ValueSome (PartitionKey partitionKey) }
 
     /// Sets the request options
     [<CustomOperation "requestOptions">]
-    member __.RequestOptions (state : ReplaceOperation<_>, options: ItemRequestOptions) = { state with RequestOptions = ValueSome options }
+    member _.RequestOptions (state : inref<ReplaceOperation<_>>, options: ItemRequestOptions) = { state with RequestOptions = ValueSome options }
 
-    /// Sets the eTag
+    /// Sets the eTag to <see href="IfMatchEtag">IfMatchEtag</see>
     [<CustomOperation "eTagValue">]
-    member __.ETagValue (state : ReplaceOperation<_>, eTag: string) =
+    member _.ETagValue (state : inref<ReplaceOperation<_>>, eTag: string) =
         match state.RequestOptions with
         | ValueSome options ->
             options.IfMatchEtag <- eTag
@@ -58,29 +58,47 @@ type ReplaceBuilder<'a>() =
             let options = ItemRequestOptions (IfMatchEtag = eTag)
             { state with RequestOptions = ValueSome options }
 
+    /// Enable content response on write
+    member private _.EnableContentResponseOnWrite (state : inref<ReplaceOperation<_>>, enable) =
+        match state.RequestOptions with
+        | ValueSome options ->
+            options.EnableContentResponseOnWrite <- enable
+            state
+        | ValueNone ->
+            let options = ItemRequestOptions (EnableContentResponseOnWrite = enable)
+            { state with RequestOptions = ValueSome options }
+
+    /// Enables content response on write
+    [<CustomOperation "enableContentResponseOnWrite">]
+    member this.EnableContentResponseOnWrite (state : inref<ReplaceOperation<_>>) = this.EnableContentResponseOnWrite (state, true)
+
+    /// Disanables content response on write
+    [<CustomOperation "disableContentResponseOnWrite">]
+    member this.DisableContentResponseOnWrite (state : inref<ReplaceOperation<_>>) = this.EnableContentResponseOnWrite (state, false)
+
 type ReplaceConcurrentlyBuilder<'a, 'e>() =
-    member __.Yield _ =
+    member _.Yield _ =
         {
             Id = String.Empty
             PartitionKey = ValueNone
-            Update = fun _ -> raise <| MissingMethodException ("Update function is not set for concurrent upsert operation")
+            Update = fun _ -> raise <| MissingMethodException ("Update function is not set for concurrent replace operation")
         } : ReplaceConcurrentlyOperation<'a, 'e>
 
     /// Sets the item being to replace existing with
     [<CustomOperation "id">]
-    member __.Id (state : ReplaceConcurrentlyOperation<_,_>, id) = { state with Id = id }
+    member _.Id (state : inref<ReplaceConcurrentlyOperation<_,_>>, id) = { state with Id = id }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member __.PartitionKey (state : ReplaceConcurrentlyOperation<_,_>, partitionKey: PartitionKey) = { state with PartitionKey = ValueSome partitionKey }
+    member _.PartitionKey (state : inref<ReplaceConcurrentlyOperation<_,_>>, partitionKey: PartitionKey) = { state with PartitionKey = ValueSome partitionKey }
 
     /// Sets the partition key
     [<CustomOperation "partitionKeyValue">]
-    member __.PartitionKeyValue (state : ReplaceConcurrentlyOperation<_,_>, partitionKey: string) = { state with PartitionKey = ValueSome (PartitionKey partitionKey) }
+    member _.PartitionKeyValue (state : inref<ReplaceConcurrentlyOperation<_,_>>, partitionKey: string) = { state with PartitionKey = ValueSome (PartitionKey partitionKey) }
 
     /// Sets the partition key
     [<CustomOperation "update">]
-    member __.Update (state : ReplaceConcurrentlyOperation<_,_>, update : 'a->Async<Result<'a, 't>>) = { state with Update = update }
+    member _.Update (state : inref<ReplaceConcurrentlyOperation<_,_>>, update : 'a->Async<Result<'a, 't>>) = { state with Update = update }
 
 let replace<'a> = ReplaceBuilder<'a>()
 let replaceConcurrenly<'a, 'e> = ReplaceConcurrentlyBuilder<'a, 'e>()
@@ -88,15 +106,15 @@ let replaceConcurrenly<'a, 'e> = ReplaceConcurrentlyBuilder<'a, 'e>()
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
 type ReplaceResult<'t> =
-    | Ok of 't
+    | Ok of 't // 200
     | BadRequest of ResponseBody : string // 400
     | NotFound of ResponseBody : string // 404
     | ModifiedBefore of ResponseBody : string //412 - need re-do
     | EntityTooLarge of ResponseBody : string // 413
 
 type ReplaceConcurrentResult<'t, 'e> =
-    | Ok of 't
-    | BadRequest of ResponseBody : string
+    | Ok of 't // 200
+    | BadRequest of ResponseBody : string // 400
     | NotFound of ResponseBody : string // 404
     | EntityTooLarge of ResponseBody : string // 413
     | TooManyAttempts of AttemptsCount : int // 429

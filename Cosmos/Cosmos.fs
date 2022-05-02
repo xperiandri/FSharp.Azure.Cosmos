@@ -5,10 +5,21 @@ open System.Net
 open FSharp.Control
 open Microsoft.Azure.Cosmos
 
+module RequestOptions =
+
+    let internal createOrUpdate setter requestOptions =
+        let options =
+            match requestOptions with
+            | ValueSome options -> options
+            | ValueNone -> ItemRequestOptions()
+        setter options
+        options
+
+
 [<AutoOpen>]
 module Operations =
 
-    let canHandleStatusCode statusCode =
+    let internal canHandleStatusCode statusCode =
         match statusCode with
         | HttpStatusCode.BadRequest
         | HttpStatusCode.NotFound
@@ -17,15 +28,7 @@ module Operations =
         | HttpStatusCode.RequestEntityTooLarge -> true
         | _ -> false
 
-    let internal getOptions (options : ItemRequestOptions voption) =
-        match options with
-        | ValueNone ->
-            raise <| ArgumentException ("ETag not specified", "eTag")
-        | ValueSome options when String.IsNullOrWhiteSpace options.IfMatchEtag ->
-            raise <| ArgumentException ("ETag not specified", "eTag")
-        | ValueSome options -> options
-
-    let toCosmosException (ex : Exception) =
+    let internal toCosmosException (ex : Exception) =
         match ex with
         | :? CosmosException as ex -> Some ex
         | :? AggregateException as ex ->
@@ -34,7 +37,7 @@ module Operations =
             | _ -> None
         | _ -> None
 
-    let handleException (ex : Exception) =
+    let internal handleException (ex : Exception) =
         let cosmosException = toCosmosException ex
         match cosmosException with
         | Some ex when canHandleStatusCode ex.StatusCode -> Some ex
@@ -46,7 +49,7 @@ module Operations =
     let (|HandleException|_|) (ex : Exception) =
         handleException ex
 
-    let retryUpdate toErrorResult asyncExecuteConcurrently maxRetryCount currentAttemptCount (e : CosmosException) =
+    let internal retryUpdate toErrorResult asyncExecuteConcurrently maxRetryCount currentAttemptCount (e : CosmosException) =
         match e.StatusCode with
         | HttpStatusCode.PreconditionFailed when currentAttemptCount >= maxRetryCount ->
             CosmosResponse.fromException toErrorResult e |> async.Return

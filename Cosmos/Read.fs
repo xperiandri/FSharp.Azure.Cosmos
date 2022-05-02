@@ -12,7 +12,7 @@ type ReadOperation<'a> =
 open System
 
 type ReadBuilder<'a>() =
-    member __.Yield _ =
+    member _.Yield _ =
         {
             Id = String.Empty
             PartitionKey = PartitionKey.None
@@ -21,26 +21,38 @@ type ReadBuilder<'a>() =
 
     /// Sets the item being creeated
     [<CustomOperation "id">]
-    member __.Id (state : ReadOperation<_>, id) = { state with Id = id }
+    member _.Id (state : inref<ReadOperation<_>>, id) = { state with Id = id }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member __.PartitionKey (state : ReadOperation<_>, partitionKey: PartitionKey) = { state with PartitionKey = partitionKey }
+    member _.PartitionKey (state : inref<ReadOperation<_>>, partitionKey: PartitionKey) = { state with PartitionKey = partitionKey }
 
     /// Sets the partition key
     [<CustomOperation "partitionKeyValue">]
-    member __.PartitionKeyValue (state : ReadOperation<_>, partitionKey: string) = { state with PartitionKey = PartitionKey partitionKey }
+    member _.PartitionKeyValue (state : inref<ReadOperation<_>>, partitionKey: string) = { state with PartitionKey = PartitionKey partitionKey }
 
     /// Sets the request options
     [<CustomOperation "requestOptions">]
-    member __.RequestOptions (state : ReadOperation<_>, options: ItemRequestOptions) = { state with RequestOptions = ValueSome options }
+    member _.RequestOptions (state : inref<ReadOperation<_>>, options: ItemRequestOptions) = { state with RequestOptions = ValueSome options }
+
+    /// Sets the eTag to <see href="IfNotMatchEtag">IfNotMatchEtag</see>
+    [<CustomOperation "eTagValue">]
+    member _.ETagValue (state : UpsertOperation<_>, eTag: string) =
+        match state.RequestOptions with
+        | ValueSome options ->
+            options.IfNotMatchEtag <- eTag
+            state
+        | ValueNone ->
+            let options = ItemRequestOptions (IfNotMatchEtag = eTag)
+            { state with RequestOptions = ValueSome options }
 
 let read<'a> = ReadBuilder<'a>()
 
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
 type ReadResult<'t> =
-    | Ok of 't
+    | Ok of 't // 200
+    | NotChanged // 204
     | NotFound of ResponseBody : string // 404
 
 open System.Net
@@ -68,7 +80,11 @@ type Microsoft.Azure.Cosmos.Container with
     }
 
     member container.AsyncExecute (operation : ReadOperation<'a>) =
-        container.AsyncExecute (operation, ReadResult.Ok, toReadResult ReadResult.NotFound)
+        let successFn =
+            function
+            | null -> ReadResult.NotChanged
+            | item -> ReadResult.Ok item
+        container.AsyncExecute (operation, successFn, toReadResult ReadResult.NotFound)
 
     member container.AsyncExecuteOption (operation : ReadOperation<'a>) =
         container.AsyncExecute (operation, Some, toReadResult (fun _ -> None))

@@ -12,7 +12,7 @@ type DeleteOperation =
 open System
 
 type DeleteBuilder() =
-    member __.Yield _ =
+    member _.Yield _ =
         {
             Id = String.Empty
             PartitionKey = PartitionKey.None
@@ -21,26 +21,26 @@ type DeleteBuilder() =
 
     /// Sets the item being creeated
     [<CustomOperation "id">]
-    member __.Id (state : DeleteOperation, id) = { state with Id = id }
+    member _.Id (state : inref<DeleteOperation>, id) = { state with Id = id }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member __.PartitionKey (state : DeleteOperation, partitionKey: PartitionKey) = { state with PartitionKey = partitionKey }
+    member _.PartitionKey (state : inref<DeleteOperation>, partitionKey: PartitionKey) = { state with PartitionKey = partitionKey }
 
     /// Sets the partition key
     [<CustomOperation "partitionKeyValue">]
-    member __.PartitionKeyValue (state : DeleteOperation, partitionKey: string) = { state with PartitionKey = PartitionKey partitionKey }
+    member _.PartitionKeyValue (state : inref<DeleteOperation>, partitionKey: string) = { state with PartitionKey = PartitionKey partitionKey }
 
     /// Sets the request options
     [<CustomOperation "requestOptions">]
-    member __.RequestOptions (state : DeleteOperation, options: ItemRequestOptions) = { state with RequestOptions = ValueSome options }
+    member _.RequestOptions (state : inref<DeleteOperation>, options: ItemRequestOptions) = { state with RequestOptions = ValueSome options }
 
 let delete = DeleteBuilder ()
 
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
 type DeleteResult<'t> =
-    | Ok of 't
+    | Ok of 't // 200
     | NotFound of ResponseBody : string // 404
 
 open System.Net
@@ -52,7 +52,7 @@ let private toDeleteResult (ex : CosmosException) =
 
 type Microsoft.Azure.Cosmos.Container with
 
-    member container.AsyncExecute (operation : DeleteOperation) = async {
+    member container.AsyncExecute (operation : inref<DeleteOperation>) = async {
         if String.IsNullOrEmpty operation.Id then invalidArg "id" "Delete operation requires Id"
         if operation.PartitionKey = Unchecked.defaultof<PartitionKey> then invalidArg "partitionKey" "Delete operation requires PartitionKey"
 
