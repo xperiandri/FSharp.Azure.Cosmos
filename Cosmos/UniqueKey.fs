@@ -7,8 +7,7 @@ type UniqueKeyPolicyBuilder () =
 
     member _.Zero () = UniqueKeyPolicy ()
 
-    member builder.Yield (key : UniqueKey) =
-        builder.Key (builder.Zero (), key)
+    member builder.Yield (key : UniqueKey) = builder.Key (builder.Zero (), key)
 
     member builder.Yield _ = builder.Zero ()
 
@@ -29,8 +28,7 @@ type UniqueKeyBuilder () =
 
     member _.Zero () = UniqueKey ()
 
-    member builder.Yield (path : string) =
-        builder.Path (builder.Zero (), path)
+    member builder.Yield (path : string) = builder.Path (builder.Zero (), path)
 
     member builder.Yield _ = builder.Zero ()
 

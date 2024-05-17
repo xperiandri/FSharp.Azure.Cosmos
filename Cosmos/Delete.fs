@@ -4,20 +4,22 @@ module FSharp.Azure.Cosmos.Delete
 open Microsoft.Azure.Cosmos
 
 [<Struct>]
-type DeleteOperation =
-    { Id : string
-      PartitionKey : PartitionKey
-      RequestOptions : ItemRequestOptions voption }
+type DeleteOperation = {
+    Id : string
+    PartitionKey : PartitionKey
+    RequestOptions : ItemRequestOptions voption
+}
 
 open System
 
-type DeleteBuilder() =
+type DeleteBuilder () =
     member _.Yield _ =
         {
             Id = String.Empty
             PartitionKey = PartitionKey.None
             RequestOptions = ValueNone
-        } : DeleteOperation
+        }
+        : DeleteOperation
 
     /// Sets the item being creeated
     [<CustomOperation "id">]
@@ -25,15 +27,24 @@ type DeleteBuilder() =
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<DeleteOperation>, partitionKey: PartitionKey) = { state with PartitionKey = partitionKey }
+    member _.PartitionKey (state : inref<DeleteOperation>, partitionKey : PartitionKey) = {
+        state with
+            PartitionKey = partitionKey
+    }
 
     /// Sets the partition key
-    [<CustomOperation "partitionKeyValue">]
-    member _.PartitionKeyValue (state : inref<DeleteOperation>, partitionKey: string) = { state with PartitionKey = PartitionKey partitionKey }
+    [<CustomOperation "partitionKey">]
+    member _.PartitionKey (state : inref<DeleteOperation>, partitionKey : string) = {
+        state with
+            PartitionKey = PartitionKey partitionKey
+    }
 
     /// Sets the request options
     [<CustomOperation "requestOptions">]
-    member _.RequestOptions (state : inref<DeleteOperation>, options: ItemRequestOptions) = { state with RequestOptions = ValueSome options }
+    member _.RequestOptions (state : inref<DeleteOperation>, options : ItemRequestOptions) = {
+        state with
+            RequestOptions = ValueSome options
+    }
 
 let delete = DeleteBuilder ()
 
@@ -50,20 +61,22 @@ let private toDeleteResult (ex : CosmosException) =
     | HttpStatusCode.NotFound -> DeleteResult.NotFound ex.ResponseBody
     | _ -> raise ex
 
+open System.Runtime.InteropServices
+open System.Threading
+open System.Threading.Tasks
+
 type Microsoft.Azure.Cosmos.Container with
 
-    member container.AsyncExecute (operation : inref<DeleteOperation>) = async {
-        if String.IsNullOrEmpty operation.Id then invalidArg "id" "Delete operation requires Id"
-        if operation.PartitionKey = Unchecked.defaultof<PartitionKey> then invalidArg "partitionKey" "Delete operation requires PartitionKey"
-
-        let! ct = Async.CancellationToken
+    member container.ExecuteAsync (operation : DeleteOperation, [<Optional>] cancellationToken : CancellationToken) = task {
         try
-            let! response = container.DeleteItemAsync(operation.Id,
-                                                      operation.PartitionKey,
-                                                      operation.RequestOptions |> ValueOption.toObj,
-                                                      cancellationToken = ct)
+            let! response =
+                container.DeleteItemAsync (
+                    operation.Id,
+                    operation.PartitionKey,
+                    operation.RequestOptions |> ValueOption.toObj,
+                    cancellationToken = cancellationToken
+                )
             return CosmosResponse.fromItemResponse DeleteResult.Ok response
-        with
-        | HandleException ex -> return CosmosResponse.fromException toDeleteResult ex
+        with HandleException ex ->
+            return CosmosResponse.fromException toDeleteResult ex
     }
-

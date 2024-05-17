@@ -1,107 +1,91 @@
 ﻿[<AutoOpen>]
 module FSharp.Azure.Cosmos.Patch
 
+open System.Collections.Immutable
+open System.Linq
 open Microsoft.Azure.Cosmos
 
 [<Struct>]
-type PatchOperation =
-    { Operations : PatchOp list
-      Id : string
-      PartitionKey : PartitionKey voption
-      RequestOptions : ItemRequestOptions voption }
-
-[<Struct>]
-type PatchConcurrentlyOperation<'e> =
-    { Operations : PatchOp list
-      Id : string
-      PartitionKey : PartitionKey voption }
+type PatchOperation<'a> = {
+    Operations : PatchOperation list
+    Id : string
+    PartitionKey : PartitionKey
+    RequestOptions : PatchItemRequestOptions voption
+}
 
 open System
 
-type PatchBuilder() =
+type PatchBuilder<'a> () =
     member _.Yield _ =
         {
             Operations = []
             Id = String.Empty
-            PartitionKey = ValueNone
+            PartitionKey = PartitionKey.None
             RequestOptions = ValueNone
-        } : PatchOperation
+        }
+        : PatchOperation<'a>
 
     /// Adds the <see href"PatchOp">Patch operation</see>
     [<CustomOperation "operation">]
-    member _.Operation (state : inref<PatchOperation>, operation) = { state with Operations = operation :: state.Operations }
+    member _.Operation (state : inref<PatchOperation<'a>>, operation) = { state with Operations = operation :: state.Operations }
 
     /// Sets the item being to Patch existing with
     [<CustomOperation "id">]
-    member _.Id (state : inref<PatchOperation>, id) = { state with Id = id }
+    member _.Id (state : inref<PatchOperation<'a>>, id) = { state with Id = id }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<PatchOperation>, partitionKey: PartitionKey) = { state with PartitionKey = ValueSome partitionKey }
+    member _.PartitionKey (state : inref<PatchOperation<'a>>, partitionKey : PartitionKey) = {
+        state with
+            PartitionKey = partitionKey
+    }
 
     /// Sets the partition key
-    [<CustomOperation "partitionKeyValue">]
-    member _.PartitionKeyValue (state : inref<PatchOperation>, partitionKey: string) = { state with PartitionKey = ValueSome (PartitionKey partitionKey) }
+    [<CustomOperation "partitionKey">]
+    member _.PartitionKey (state : inref<PatchOperation<'a>>, partitionKey : string) = {
+        state with
+            PartitionKey = (PartitionKey partitionKey)
+    }
 
     /// Sets the request options
     [<CustomOperation "requestOptions">]
-    member _.RequestOptions (state : inref<PatchOperation>, options: ItemRequestOptions) = { state with RequestOptions = ValueSome options }
+    member _.RequestOptions (state : inref<PatchOperation<'a>>, options : PatchItemRequestOptions) = {
+        state with
+            RequestOptions = ValueSome options
+    }
 
     /// Sets the eTag to <see href="IfMatchEtag">IfMatchEtag</see>
     [<CustomOperation "eTagValue">]
-    member _.ETagValue (state : inref<PatchOperation>, eTag: string) =
+    member _.ETagValue (state : inref<PatchOperation<'a>>, eTag : string) =
         match state.RequestOptions with
         | ValueSome options ->
             options.IfMatchEtag <- eTag
             state
         | ValueNone ->
-            let options = ItemRequestOptions (IfMatchEtag = eTag)
+            let options = PatchItemRequestOptions (IfMatchEtag = eTag)
             { state with RequestOptions = ValueSome options }
 
     /// Enable content response on write
-    member private _.EnableContentResponseOnWrite (state : inref<PatchOperation>, enable) =
+    member private _.EnableContentResponseOnWrite (state : inref<PatchOperation<'a>>, enable) =
         match state.RequestOptions with
         | ValueSome options ->
             options.EnableContentResponseOnWrite <- enable
             state
         | ValueNone ->
-            let options = ItemRequestOptions (EnableContentResponseOnWrite = enable)
+            let options = PatchItemRequestOptions (EnableContentResponseOnWrite = enable)
             { state with RequestOptions = ValueSome options }
 
     /// Enables content response on write
     [<CustomOperation "enableContentResponseOnWrite">]
-    member this.EnableContentResponseOnWrite (state : inref<PatchOperation>) = this.EnableContentResponseOnWrite (state, true)
+    member this.EnableContentResponseOnWrite (state : inref<PatchOperation<'a>>) =
+        this.EnableContentResponseOnWrite (&state, true)
 
     /// Disanables content response on write
     [<CustomOperation "disableContentResponseOnWrite">]
-    member this.DisableContentResponseOnWrite (state : inref<PatchOperation>) = this.EnableContentResponseOnWrite (state, false)
+    member this.DisableContentResponseOnWrite (state : inref<PatchOperation<'a>>) =
+        this.EnableContentResponseOnWrite (&state, false)
 
-type PatchConcurrentlyBuilder<'e>() =
-    member _.Yield _ =
-        {
-            Operations = []
-            Id = String.Empty
-            PartitionKey = ValueNone
-        } : PatchConcurrentlyOperation<'e>
-
-    /// Adds the <see href"PatchOp">Patch operation</see>
-    [<CustomOperation "operation">]
-    member _.Operation (state : inref<PatchConcurrentlyOperation<_>>, operation) = { state with Operations = operation :: state.Operations }
-
-    /// Sets the item being to Patch existing with
-    [<CustomOperation "id">]
-    member _.Id (state : inref<PatchConcurrentlyOperation<_>>, id) = { state with Id = id }
-
-    /// Sets the partition key
-    [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<PatchConcurrentlyOperation<_>>, partitionKey: PartitionKey) = { state with PartitionKey = ValueSome partitionKey }
-
-    /// Sets the partition key
-    [<CustomOperation "partitionKeyValue">]
-    member _.PartitionKeyValue (state : inref<PatchConcurrentlyOperation<_>>, partitionKey: string) = { state with PartitionKey = ValueSome (PartitionKey partitionKey) }
-
-let Patch = PatchBuilder()
-let PatchConcurrenly<'e> = PatchConcurrentlyBuilder<'e>()
+let patch<'a> = PatchBuilder<'a> ()
 
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
@@ -111,14 +95,7 @@ type PatchResult<'t> =
     | BadRequest of ResponseBody : string // 400
     | NotFound of ResponseBody : string // 404
     | ModifiedBefore of ResponseBody : string //412 - need re-do
-
-type PatchConcurrentResult<'t, 'e> =
-    | Ok of 't // 200
-    | NotExecuted
-    | BadRequest of ResponseBody : string // 400
-    | NotFound of ResponseBody : string // 404
-    | TooManyAttempts of AttemptsCount : int // 429
-    | CustomError of Error : 'e
+    | TooManyRequests of ResponseBody : string * RetryAfter : TimeSpan voption // 429
 
 open System.Net
 
@@ -126,76 +103,45 @@ let private toPatchResult (ex : CosmosException) =
     match ex.StatusCode with
     | HttpStatusCode.BadRequest -> PatchResult.BadRequest ex.ResponseBody
     | HttpStatusCode.NotFound -> PatchResult.NotFound ex.ResponseBody
-    | HttpStatusCode.PreconditionFailed  -> PatchResult.ModifiedBefore ex.ResponseBody
+    | HttpStatusCode.PreconditionFailed -> PatchResult.ModifiedBefore ex.ResponseBody
+    | HttpStatusCode.TooManyRequests -> PatchResult.TooManyRequests (ex.ResponseBody, ex.RetryAfter |> ValueOption.ofNullable)
     | _ -> raise ex
 
-let private toPatchConcurrentlyErrorResult (ex : CosmosException) =
-    match ex.StatusCode  with
-    | HttpStatusCode.NotFound              -> PatchConcurrentResult.NotFound       ex.ResponseBody
-    | HttpStatusCode.BadRequest            -> PatchConcurrentResult.BadRequest     ex.ResponseBody
-    | _ -> raise ex
-
-
-let rec asyncExecuteConcurrently<'error>
-        (container : Container)
-        (operation : PatchConcurrentlyOperation<'error>)
-        (maxRetryCount : int)
-        (currentAttemptCount : int) : Async<CosmosResponse<PatchConcurrentResult<'error>>> = async {
-
-    let retryUpdate =
-        retryUpdate toPatchConcurrentlyErrorResult
-                    (asyncExecuteConcurrently container operation)
-                    maxRetryCount currentAttemptCount
-
-    let! ct = Async.CancellationToken
-
-    try
-        let partitionKey =
-            match operation.PartitionKey with
-            | ValueSome partitionKey -> partitionKey
-            | ValueNone -> PartitionKey.None
-        let! response = container.ReadItemAsync<'value>(operation.Id, partitionKey, cancellationToken = ct)
-        let eTag = response.ETag
-        let! itemUpdateResult = operation.Update response.Resource
-        match itemUpdateResult with
-        | Result.Error e -> return CosmosResponse.fromItemResponse (fun _ -> CustomError e) response
-        | Result.Ok item ->
-            let updateOptions = new ItemRequestOptions (IfMatchEtag = eTag)
-            let! response = container.PatchItemAsync<'value>(item, operation.Id, requestOptions = updateOptions, cancellationToken = ct)
-            return CosmosResponse.fromItemResponse Ok response
-    with
-    | HandleException ex -> return! retryUpdate ex
-}
+open System.Threading
+open System.Threading.Tasks
 
 open System.Runtime.InteropServices
 
 type Microsoft.Azure.Cosmos.Container with
 
-    member private container.AsyncExecute (operation : inref<PatchOperation>) = async {
-        if String.IsNullOrEmpty operation.Id then invalidArg "id" "Patch operation requires Id"
-        if operation.Operations = Unchecked.defaultof<'a> then invalidArg "item" "No item to Patch specified"
+    member private container.ExecuteCoreAsync<'a>
+        (operation : PatchOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
+        =
+        task {
+            try
+                let! response =
+                    container.PatchItemAsync<'a> (
+                        operation.Id,
+                        operation.PartitionKey,
+                        operation.Operations.ToImmutableList (),
+                        operation.RequestOptions |> ValueOption.toObj,
+                        cancellationToken = cancellationToken
+                    )
+                return CosmosResponse.fromItemResponse PatchResult.Ok response
+            with HandleException ex ->
+                return CosmosResponse.fromException toPatchResult ex
+        }
 
-        let! ct = Async.CancellationToken
-        try
-            let! response = container.PatchItemAsync<'a>(operation.Item,
-                                                           operation.Id,
-                                                           operation.PartitionKey |> ValueOption.toNullable,
-                                                           operation.RequestOptions |> ValueOption.toObj,
-                                                           cancellationToken = ct)
-            return CosmosResponse.fromItemResponse PatchResult.Ok response
-        with
-        | HandleException ex -> return CosmosResponse.fromException toPatchResult ex
-    }
-
-    member container.AsyncExecute =
+    member container.ExecuteAsync<'a>
+        (operation : inref<PatchOperation<'a>>, [<Optional>] cancellationToken : CancellationToken)
+        =
         match operation.RequestOptions with
         | ValueNone -> invalidArg "eTag" "Safe Patch requires ETag"
         | ValueSome options when String.IsNullOrEmpty options.IfMatchEtag -> invalidArg "eTag" "Safe Patch requires ETag"
         | _ -> ()
-        container.AsyncExecute operation
+        container.ExecuteCoreAsync<'a> (operation, cancellationToken)
 
-    member container.AsyncExecuteOverwrite<'a> (operation : inref<PatchOperation><'a>) =
-        container.AsyncExecute (ValueOption.toObj, operation)
-
-    member container.AsyncExecuteConcurrently<'e> (operation : PatchConcurrentlyOperation<'e>, [<Optional;DefaultParameterValue(10)>] maxRetryCount : int) =
-        asyncExecuteConcurrently<'e> container operation maxRetryCount 0
+    member container.ExecuteOverwriteAsync<'a>
+        (operation : inref<PatchOperation<'a>>, [<Optional>] cancellationToken : CancellationToken)
+        =
+        container.ExecuteCoreAsync<'a> (operation, cancellationToken)

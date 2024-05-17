@@ -2,6 +2,9 @@
 
 open System
 open System.Net
+open System.Runtime.InteropServices
+open System.Threading
+open System.Threading.Tasks
 open FSharp.Control
 open Microsoft.Azure.Cosmos
 
@@ -11,7 +14,7 @@ module RequestOptions =
         let options =
             match requestOptions with
             | ValueSome options -> options
-            | ValueNone -> ItemRequestOptions()
+            | ValueNone -> ItemRequestOptions ()
         setter options
         options
 
@@ -25,7 +28,8 @@ module Operations =
         | HttpStatusCode.NotFound
         | HttpStatusCode.Conflict
         | HttpStatusCode.PreconditionFailed
-        | HttpStatusCode.RequestEntityTooLarge -> true
+        | HttpStatusCode.RequestEntityTooLarge
+        | HttpStatusCode.TooManyRequests -> true
         | _ -> false
 
     let internal toCosmosException (ex : Exception) =
@@ -43,47 +47,93 @@ module Operations =
         | Some ex when canHandleStatusCode ex.StatusCode -> Some ex
         | _ -> None
 
-    let (|CosmosException|_|) (ex : Exception) =
-        toCosmosException ex
+    let (|CosmosException|_|) (ex : Exception) = toCosmosException ex
 
-    let (|HandleException|_|) (ex : Exception) =
-        handleException ex
+    let (|HandleException|_|) (ex : Exception) = handleException ex
 
-    let internal retryUpdate toErrorResult asyncExecuteConcurrently maxRetryCount currentAttemptCount (e : CosmosException) =
+    let internal retryUpdate toErrorResult executeConcurrentlyAsync maxRetryCount currentAttemptCount (e : CosmosException) =
         match e.StatusCode with
         | HttpStatusCode.PreconditionFailed when currentAttemptCount >= maxRetryCount ->
             CosmosResponse.fromException toErrorResult e |> async.Return
-        | HttpStatusCode.PreconditionFailed ->
-            asyncExecuteConcurrently maxRetryCount (currentAttemptCount + 1)
-        | _ ->
-            CosmosResponse.fromException toErrorResult e |> async.Return
+        | HttpStatusCode.PreconditionFailed -> executeConcurrentlyAsync maxRetryCount (currentAttemptCount + 1)
+        | _ -> CosmosResponse.fromException toErrorResult e |> async.Return
+
+    let internal getRequestOptionsWithMaxItemCount1 requestOptions =
+        requestOptions
+        |> ValueOption.ofObj
+        |> ValueOption.defaultWith QueryRequestOptions
+        |> fun o ->
+            o.MaxItemCount <- 1
+            o
+
+    let internal countQuery = QueryDefinition ("SELECT VALUE COUNT(1)")
+    let internal existsQuery = QueryDefinition("SELECT VALUE COUNT(1) FROM item WHERE item.id = @Id")
+    let internal getExistsQuery id = existsQuery.WithParameter ("@Id", id)
 
     type Microsoft.Azure.Cosmos.Container with
 
-        member container.AsyncExists (id : string) = async {
-            let query =
-                QueryDefinition(
-                   "SELECT VALUE COUNT(1) \
-                    FROM item \
-                    WHERE item.id = @Id")
-                    .WithParameter("@Id", id)
-            let! count =
-                container.GetItemQueryIterator<int>(query)
-                |> AsyncSeq.ofFeedIterator
-                |> AsyncSeq.firstOrDefault 0
-            return count = 1
-        }
+        member container.CountAsync (requestOptions : QueryRequestOptions, [<Optional>] cancellationToken : CancellationToken) =
+            container.GetItemQueryIterator<int> (countQuery, requestOptions = getRequestOptionsWithMaxItemCount1 requestOptions)
+            |> TaskSeq.ofFeedIteratorWithCancellation cancellationToken
+            |> TaskSeq.tryHead
+            |> Task.map (Option.defaultValue 0)
 
-        member container.AsyncIsNotDeleted deletedFieldName (id : string) = async {
-            let query =
-                QueryDefinition(
-                    "SELECT VALUE COUNT(1) \
+        member container.CountAsync (partitionKey, [<Optional>] cancellationToken : CancellationToken) =
+            container.CountAsync (QueryRequestOptions (PartitionKey = partitionKey), cancellationToken)
+
+        member container.CountAsync (partitionKey : string, [<Optional>] cancellationToken : CancellationToken) =
+            container.CountAsync (PartitionKey partitionKey, cancellationToken)
+
+        member container.LongCountAsync (requestOptions : QueryRequestOptions, [<Optional>] cancellationToken : CancellationToken) =
+            container.GetItemQueryIterator<int64> (countQuery, requestOptions = getRequestOptionsWithMaxItemCount1 requestOptions)
+            |> TaskSeq.ofFeedIteratorWithCancellation cancellationToken
+            |> TaskSeq.tryHead
+            |> Task.map (Option.defaultValue 0)
+
+        member container.LongCountAsync (partitionKey, [<Optional>] cancellationToken : CancellationToken) =
+            container.LongCountAsync (QueryRequestOptions (PartitionKey = partitionKey), cancellationToken)
+
+        member container.LongCountAsync (partitionKey : string, [<Optional>] cancellationToken : CancellationToken) =
+            container.LongCountAsync (PartitionKey partitionKey, cancellationToken)
+
+        member container.ExistsAsync
+            (id : string, [<Optional>] requestOptions : QueryRequestOptions, [<Optional>] cancellationToken : CancellationToken)
+            =
+            task {
+                let query = getExistsQuery id
+                let! count =
+                    container.GetItemQueryIterator<int> (
+                        query,
+                        requestOptions = getRequestOptionsWithMaxItemCount1 requestOptions
+                    )
+                    |> TaskSeq.ofFeedIteratorWithCancellation cancellationToken
+                    |> TaskSeq.tryHead
+                    |> Task.map (Option.defaultValue 0)
+                return count = 1
+            }
+
+        member container.ExistsAsync (id : string, partitionKey : PartitionKey, [<Optional>] cancellationToken : CancellationToken) =
+            container.ExistsAsync (id, QueryRequestOptions (PartitionKey = partitionKey), cancellationToken)
+
+        member container.IsNotDeletedAsync
+            deletedFieldName
+            (id : string, [<Optional>] requiestOptions : QueryRequestOptions, [<Optional>] cancellationToken : CancellationToken)
+            =
+            task {
+                let query =
+                    QueryDefinition(
+                        $"SELECT VALUE COUNT(1) \
                      FROM item \
-                     WHERE item.id = @Id AND IS_NULL(item."+deletedFieldName+")")
-                    .WithParameter("@Id", id)
-            let! count =
-                container.GetItemQueryIterator<int>(query)
-                |> AsyncSeq.ofFeedIterator
-                |> AsyncSeq.firstOrDefault 0
-            return count = 1
-        }
+                     WHERE item.id = @Id AND IS_NULL(item.{deletedFieldName})"
+                    )
+                        .WithParameter ("@Id", id)
+                let! count =
+                    container.GetItemQueryIterator<int> (
+                        query,
+                        requestOptions = getRequestOptionsWithMaxItemCount1 requiestOptions
+                    )
+                    |> TaskSeq.ofFeedIteratorWithCancellation cancellationToken
+                    |> TaskSeq.tryHead
+                    |> Task.map (Option.defaultValue 0)
+                return count = 1
+            }
