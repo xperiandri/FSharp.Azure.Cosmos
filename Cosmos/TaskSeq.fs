@@ -1,9 +1,11 @@
 ﻿module Microsoft.Azure.Cosmos.TaskSeq
 
+open System.Linq
 open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 open System.Threading
 open Microsoft.Azure.Cosmos
+open Microsoft.Azure.Cosmos.Linq
 open FSharp.Control
 
 // See https://github.com/Azure/azure-cosmos-dotnet-v3/issues/903
@@ -38,3 +40,6 @@ let ofFeedIteratorWithTags<'T> (iterator : FeedIterator<'T>) = iterator.AsAsyncE
 
 let ofFeedIteratorWithTagsAndCancellation<'T> (cancellationToken : CancellationToken) (iterator : FeedIterator<'T>) =
     iterator.AsAsyncEnumerableWithTags<'T> (cancellationToken)
+
+let ofCosmosDbQuerable<'T> (query : IQueryable<'T>) = query.ToFeedIterator().AsAsyncEnumerable<'T> ()
+let ofCosmosDbQuerableWithCancellation<'T> (cancellationToken : CancellationToken) (query : IQueryable<'T>) = query.ToFeedIterator().AsAsyncEnumerable<'T> (cancellationToken)

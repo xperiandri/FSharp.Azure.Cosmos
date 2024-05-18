@@ -26,24 +26,23 @@ type CreateBuilder<'a> (enableContentResponseOnWrite : bool) =
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<CreateOperation<_>>, partitionKey : PartitionKey) = {
+    member _.PartitionKey (state : CreateOperation<_>, partitionKey : PartitionKey) = {
         state with
             PartitionKey = ValueSome partitionKey
     }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<CreateOperation<_>>, partitionKey : string) = {
+    member _.PartitionKey (state : CreateOperation<_>, partitionKey : string) = {
         state with
             PartitionKey = ValueSome (PartitionKey partitionKey)
     }
 
     /// Sets the request options
     [<CustomOperation "requestOptions">]
-    member _.RequestOptions (state : inref<CreateOperation<_>>, options : ItemRequestOptions) = {
-        state with
-            RequestOptions = options
-    }
+    member _.RequestOptions (state : CreateOperation<_>, options : ItemRequestOptions) =
+        options.EnableContentResponseOnWrite <- enableContentResponseOnWrite
+        { state with RequestOptions = options }
 
 let create<'a> = CreateBuilder<'a> (false)
 let createAndRead<'a> = CreateBuilder<'a> (true)
@@ -72,19 +71,21 @@ open System.Threading.Tasks
 
 type Microsoft.Azure.Cosmos.Container with
 
+    member container.PlainExecuteAsync<'a> (operation : CreateOperation<'a>, [<Optional>] cancellationToken : CancellationToken) =
+        container.CreateItemAsync<'a> (
+            operation.Item,
+            operation.PartitionKey |> ValueOption.toNullable,
+            operation.RequestOptions,
+            cancellationToken = cancellationToken
+        )
+
     member container.ExecuteAsync<'a>
         (operation : CreateOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
         : Task<CosmosResponse<CreateResult<'a>>>
         =
         task {
             try
-                let! response =
-                    container.CreateItemAsync<'a> (
-                        operation.Item,
-                        operation.PartitionKey |> ValueOption.toNullable,
-                        operation.RequestOptions,
-                        cancellationToken = cancellationToken
-                    )
+                let! response = container.PlainExecuteAsync (operation, cancellationToken)
                 return CosmosResponse.fromItemResponse CreateResult.Ok response
             with HandleException ex ->
                 return CosmosResponse.fromException toCreateResult ex

@@ -23,32 +23,32 @@ type ReadBuilder<'a> () =
 
     /// Sets the item being creeated
     [<CustomOperation "id">]
-    member _.Id (state : inref<ReadOperation<_>>, id) = { state with Id = id }
+    member _.Id (state : ReadOperation<_>, id) = { state with Id = id }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<ReadOperation<_>>, partitionKey : PartitionKey) = {
+    member _.PartitionKey (state : ReadOperation<_>, partitionKey : PartitionKey) = {
         state with
             PartitionKey = partitionKey
     }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<ReadOperation<_>>, partitionKey : string) = {
+    member _.PartitionKey (state : ReadOperation<_>, partitionKey : string) = {
         state with
             PartitionKey = PartitionKey partitionKey
     }
 
     /// Sets the request options
     [<CustomOperation "requestOptions">]
-    member _.RequestOptions (state : inref<ReadOperation<_>>, options : ItemRequestOptions) = {
+    member _.RequestOptions (state : ReadOperation<_>, options : ItemRequestOptions) = {
         state with
             RequestOptions = options
     }
 
     /// Sets the eTag to <see href="IfNotMatchEtag">IfNotMatchEtag</see>
-    [<CustomOperation "eTagValue">]
-    member _.ETagValue (state : UpsertOperation<_>, eTag : string) =
+    [<CustomOperation "eTag">]
+    member _.ETag (state : UpsertOperation<_>, eTag : string) =
         if state.RequestOptions = Unchecked.defaultof<_> then
             let options = ItemRequestOptions (IfNoneMatchEtag = eTag)
 

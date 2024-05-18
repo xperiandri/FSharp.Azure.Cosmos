@@ -23,28 +23,39 @@ type DeleteBuilder () =
 
     /// Sets the item being creeated
     [<CustomOperation "id">]
-    member _.Id (state : inref<DeleteOperation>, id) = { state with Id = id }
+    member _.Id (state : DeleteOperation, id) = { state with Id = id }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<DeleteOperation>, partitionKey : PartitionKey) = {
+    member _.PartitionKey (state : DeleteOperation, partitionKey : PartitionKey) = {
         state with
             PartitionKey = partitionKey
     }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<DeleteOperation>, partitionKey : string) = {
+    member _.PartitionKey (state : DeleteOperation, partitionKey : string) = {
         state with
             PartitionKey = PartitionKey partitionKey
     }
 
     /// Sets the request options
     [<CustomOperation "requestOptions">]
-    member _.RequestOptions (state : inref<DeleteOperation>, options : ItemRequestOptions) = {
+    member _.RequestOptions (state : DeleteOperation, options : ItemRequestOptions) = {
         state with
             RequestOptions = ValueSome options
     }
+
+    /// Sets the eTag to <see href="IfNotMatchEtag">IfNotMatchEtag</see>
+    [<CustomOperation "eTag">]
+    member _.ETag (state : DeleteOperation, eTag : string) =
+        match state.RequestOptions with
+        | ValueSome requestOptions ->
+            requestOptions.IfNoneMatchEtag <- eTag
+            state
+        | ValueNone ->
+            let options = ItemRequestOptions (IfNoneMatchEtag = eTag)
+            { state with RequestOptions = ValueSome options }
 
 let delete = DeleteBuilder ()
 
@@ -67,15 +78,17 @@ open System.Threading.Tasks
 
 type Microsoft.Azure.Cosmos.Container with
 
+    member container.PlainExecuteAsync (operation : DeleteOperation, [<Optional>] cancellationToken : CancellationToken) =
+        container.DeleteItemAsync (
+            operation.Id,
+            operation.PartitionKey,
+            operation.RequestOptions |> ValueOption.toObj,
+            cancellationToken = cancellationToken
+        )
+
     member container.ExecuteAsync (operation : DeleteOperation, [<Optional>] cancellationToken : CancellationToken) = task {
         try
-            let! response =
-                container.DeleteItemAsync (
-                    operation.Id,
-                    operation.PartitionKey,
-                    operation.RequestOptions |> ValueOption.toObj,
-                    cancellationToken = cancellationToken
-                )
+            let! response = container.PlainExecuteAsync (operation, cancellationToken)
             return CosmosResponse.fromItemResponse DeleteResult.Ok response
         with HandleException ex ->
             return CosmosResponse.fromException toDeleteResult ex

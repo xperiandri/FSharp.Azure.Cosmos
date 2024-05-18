@@ -49,11 +49,15 @@ type UpsertBuilder<'a> (enableContentResponseOnWrite : bool) =
 
     /// Sets the request options
     [<CustomOperation "requestOptions">]
-    member _.RequestOptions (state : UpsertOperation<_>, options : ItemRequestOptions) = { state with RequestOptions = options }
+    member _.RequestOptions (state : UpsertOperation<_>, options : ItemRequestOptions) =
+        options.EnableContentResponseOnWrite <- enableContentResponseOnWrite
+        { state with RequestOptions = options }
 
     /// Sets the eTag to <see href="IfMatchEtag">IfMatchEtag</see>
-    [<CustomOperation "eTagValue">]
-    member _.ETagValue (state : UpsertOperation<_>, eTag : string) = state.RequestOptions.IfMatchEtag <- eTag
+    [<CustomOperation "eTag">]
+    member _.ETag (state : UpsertOperation<_>, eTag : string) =
+        state.RequestOptions.IfMatchEtag <- eTag
+        state
 
 type UpsertConcurrentlyBuilder<'a, 'e> (enableContentResponseOnWrite : bool) =
     member _.Yield _ =
@@ -71,25 +75,31 @@ type UpsertConcurrentlyBuilder<'a, 'e> (enableContentResponseOnWrite : bool) =
 
     /// Sets the item being to upsert existing with
     [<CustomOperation "id">]
-    member _.Id (state : inref<UpsertConcurrentlyOperation<_, _>>, id) = { state with Id = id }
+    member _.Id (state : UpsertConcurrentlyOperation<_, _>, id) = { state with Id = id }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<UpsertConcurrentlyOperation<_, _>>, partitionKey : PartitionKey) = {
+    member _.PartitionKey (state : UpsertConcurrentlyOperation<_, _>, partitionKey : PartitionKey) = {
         state with
             PartitionKey = ValueSome partitionKey
     }
 
     /// Sets the partition key
-    [<CustomOperation "partitionKeyValue">]
-    member _.PartitionKeyValue (state : inref<UpsertConcurrentlyOperation<_, _>>, partitionKey : string) = {
+    [<CustomOperation "partitionKey">]
+    member _.PartitionKey (state : UpsertConcurrentlyOperation<_, _>, partitionKey : string) = {
         state with
             PartitionKey = ValueSome (PartitionKey partitionKey)
     }
 
+    /// Sets the request options
+    [<CustomOperation "requestOptions">]
+    member _.RequestOptions (state : UpsertConcurrentlyOperation<_, _>, options : ItemRequestOptions) =
+        options.EnableContentResponseOnWrite <- enableContentResponseOnWrite
+        { state with RequestOptions = options }
+
     /// Sets the partition key
     [<CustomOperation "updateOrCreate">]
-    member _.UpdateOrCreate (state : inref<UpsertConcurrentlyOperation<_, _>>, update : 'a option -> Async<Result<'a, 't>>) = {
+    member _.UpdateOrCreate (state : UpsertConcurrentlyOperation<_, _>, update : 'a option -> Async<Result<'a, 't>>) = {
         state with
             UpdateOrCreate = update
     }
@@ -204,29 +214,32 @@ let DefaultMaxRetryCount = 10
 
 type Microsoft.Azure.Cosmos.Container with
 
+    member container.PlainExecuteAsync<'a>
+        (operation : UpsertOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
+        =
+        container.UpsertItemAsync<'a> (
+            operation.Item,
+            operation.PartitionKey |> ValueOption.toNullable,
+            operation.RequestOptions,
+            cancellationToken = cancellationToken
+        )
+
     member private container.ExecuteCoreAsync<'a>
         (operation : UpsertOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
         =
         task {
             try
-                let! response =
-                    container.UpsertItemAsync<'a> (
-                        operation.Item,
-                        operation.PartitionKey |> ValueOption.toNullable,
-                        operation.RequestOptions,
-                        cancellationToken = cancellationToken
-                    )
-
+                let! response = container.PlainExecuteAsync (operation, cancellationToken)
                 return CosmosResponse.fromItemResponse UpsertResult.Ok response
             with HandleException ex ->
                 return CosmosResponse.fromException toUpsertResult ex
         }
 
-    member container.ExecuteAsync<'a> (operation : UpsertOperation<'a>) =
+    member container.ExecuteAsync<'a> (operation : UpsertOperation<'a>, [<Optional>] cancellationToken : CancellationToken) =
         if String.IsNullOrEmpty operation.RequestOptions.IfMatchEtag then
             invalidArg "eTag" "Safe replace requires ETag"
 
-        container.ExecuteCoreAsync (operation)
+        container.ExecuteCoreAsync (operation, cancellationToken)
 
     member container.ExecuteOverwriteAsync<'a>
         (operation : UpsertOperation<'a>, [<Optional>] cancellationToken : CancellationToken)

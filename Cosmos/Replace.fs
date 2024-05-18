@@ -33,36 +33,38 @@ type ReplaceBuilder<'a> (enableContentResponseOnWrite : bool) =
 
     /// Sets the item being to replace existing with
     [<CustomOperation "item">]
-    member _.Item (state : inref<ReplaceOperation<_>>, item) = { state with Item = item }
+    member _.Item (state : ReplaceOperation<_>, item) = { state with Item = item }
 
     /// Sets the item being to replace existing with
     [<CustomOperation "id">]
-    member _.Id (state : inref<ReplaceOperation<_>>, id) = { state with Id = id }
+    member _.Id (state : ReplaceOperation<_>, id) = { state with Id = id }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<ReplaceOperation<_>>, partitionKey : PartitionKey) = {
+    member _.PartitionKey (state : ReplaceOperation<_>, partitionKey : PartitionKey) = {
         state with
             PartitionKey = ValueSome partitionKey
     }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<ReplaceOperation<_>>, partitionKey : string) = {
+    member _.PartitionKey (state : ReplaceOperation<_>, partitionKey : string) = {
         state with
             PartitionKey = ValueSome (PartitionKey partitionKey)
     }
 
     /// Sets the request options
     [<CustomOperation "requestOptions">]
-    member _.RequestOptions (state : inref<ReplaceOperation<_>>, options : ItemRequestOptions) = {
+    member _.RequestOptions (state : ReplaceOperation<_>, options : ItemRequestOptions) = {
         state with
             RequestOptions = options
     }
 
     /// Sets the eTag to <see href="IfMatchEtag">IfMatchEtag</see>
-    [<CustomOperation "eTagValue">]
-    member _.ETagValue (state : inref<ReplaceOperation<_>>, eTag : string) = state.RequestOptions.IfMatchEtag <- eTag
+    [<CustomOperation "eTag">]
+    member _.ETag (state : ReplaceOperation<_>, eTag : string) =
+        state.RequestOptions.IfMatchEtag <- eTag
+        state
 
 type ReplaceConcurrentlyBuilder<'a, 'e> (enableContentResponseOnWrite : bool) =
     member _.Yield _ =
@@ -79,25 +81,31 @@ type ReplaceConcurrentlyBuilder<'a, 'e> (enableContentResponseOnWrite : bool) =
 
     /// Sets the item being to replace existing with
     [<CustomOperation "id">]
-    member _.Id (state : inref<ReplaceConcurrentlyOperation<_, _>>, id) = { state with Id = id }
+    member _.Id (state : ReplaceConcurrentlyOperation<_, _>, id) = { state with Id = id }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : inref<ReplaceConcurrentlyOperation<_, _>>, partitionKey : PartitionKey) = {
+    member _.PartitionKey (state : ReplaceConcurrentlyOperation<_, _>, partitionKey : PartitionKey) = {
         state with
             PartitionKey = ValueSome partitionKey
     }
 
     /// Sets the partition key
-    [<CustomOperation "partitionKeyValue">]
-    member _.PartitionKeyValue (state : inref<ReplaceConcurrentlyOperation<_, _>>, partitionKey : string) = {
+    [<CustomOperation "partitionKey">]
+    member _.PartitionKey (state : ReplaceConcurrentlyOperation<_, _>, partitionKey : string) = {
         state with
             PartitionKey = ValueSome (PartitionKey partitionKey)
     }
 
+    /// Sets the request options
+    [<CustomOperation "requestOptions">]
+    member _.RequestOptions (state : ReplaceConcurrentlyOperation<_, _>, options : ItemRequestOptions) =
+        options.EnableContentResponseOnWrite <- enableContentResponseOnWrite
+        { state with RequestOptions = options }
+
     /// Sets the partition key
     [<CustomOperation "update">]
-    member _.Update (state : inref<ReplaceConcurrentlyOperation<_, _>>, update : 'a -> Async<Result<'a, 't>>) = {
+    member _.Update (state : ReplaceConcurrentlyOperation<_, _>, update : 'a -> Async<Result<'a, 't>>) = {
         state with
             Update = update
     }
@@ -200,32 +208,36 @@ let DefaultRetryCount = 10
 
 type Microsoft.Azure.Cosmos.Container with
 
+    member container.PlainExecuteAsync<'a>
+        (operation : ReplaceOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
+        =
+        container.ReplaceItemAsync<'a> (
+            operation.Item,
+            operation.Id,
+            operation.PartitionKey |> ValueOption.toNullable,
+            operation.RequestOptions,
+            cancellationToken = cancellationToken
+        )
+
     member private container.ExecuteCoreAsync<'a>
         (operation : ReplaceOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
         =
         task {
             try
-                let! response =
-                    container.ReplaceItemAsync<'a> (
-                        operation.Item,
-                        operation.Id,
-                        operation.PartitionKey |> ValueOption.toNullable,
-                        operation.RequestOptions,
-                        cancellationToken = cancellationToken
-                    )
-
+                let! response = container.PlainExecuteAsync (operation, cancellationToken)
                 return CosmosResponse.fromItemResponse ReplaceResult.Ok response
             with HandleException ex ->
                 return CosmosResponse.fromException toReplaceResult ex
         }
 
-    member container.ExecuteAsync<'a> (operation : ReplaceOperation<'a>) =
+    member container.ExecuteAsync<'a> (operation : ReplaceOperation<'a>, [<Optional>] cancellationToken : CancellationToken) =
         if String.IsNullOrEmpty operation.RequestOptions.IfMatchEtag then
             invalidArg "eTag" "Safe replace requires ETag"
 
-        container.ExecuteCoreAsync (operation)
+        container.ExecuteCoreAsync (operation, cancellationToken)
 
-    member container.ExecuteOverwriteAsync<'a> (operation : ReplaceOperation<'a>) = container.ExecuteCoreAsync (operation)
+    member container.ExecuteOverwriteAsync<'a> (operation : ReplaceOperation<'a>, [<Optional>] cancellationToken : CancellationToken) =
+        container.ExecuteCoreAsync (operation, cancellationToken)
 
     member container.ExecuteConcurrentlyAsync<'a, 'e>
         (
