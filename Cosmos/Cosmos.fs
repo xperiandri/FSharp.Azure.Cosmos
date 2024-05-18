@@ -8,7 +8,7 @@ open System.Threading.Tasks
 open FSharp.Control
 open Microsoft.Azure.Cosmos
 
-module RequestOptions =
+module internal RequestOptions =
 
     let internal createOrUpdate setter requestOptions =
         let options =
@@ -72,30 +72,81 @@ module Operations =
 
     type Microsoft.Azure.Cosmos.Container with
 
+        /// <summary>
+        /// Counts the number of items in the container with specified <see cref="QueryRequestOptions"/>.
+        /// </summary>
+        /// <param name="requestOptions">Request options</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         member container.CountAsync (requestOptions : QueryRequestOptions, [<Optional>] cancellationToken : CancellationToken) =
             container.GetItemQueryIterator<int> (countQuery, requestOptions = getRequestOptionsWithMaxItemCount1 requestOptions)
             |> TaskSeq.ofFeedIteratorWithCancellation cancellationToken
             |> TaskSeq.tryHead
             |> Task.map (Option.defaultValue 0)
 
+        /// <summary>
+        /// Counts the number of items in the container partition with specified key.
+        /// <para>
+        /// If no partition key is provided, the count will be for the entire container.
+        /// </para>
+        /// </summary>
+        /// <param name="partitionKey">Partition key</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         member container.CountAsync (partitionKey, [<Optional>] cancellationToken : CancellationToken) =
             container.CountAsync (QueryRequestOptions (PartitionKey = partitionKey), cancellationToken)
 
+        /// <summary>
+        /// Counts the number of items in the container partition with specified key.
+        /// <para>
+        /// If no partition key is provided, the count will be for the entire container.
+        /// </para>
+        /// </summary>
+        /// <param name="partitionKey">Partition key</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         member container.CountAsync (partitionKey : string, [<Optional>] cancellationToken : CancellationToken) =
-            container.CountAsync (PartitionKey partitionKey, cancellationToken)
+            if String.IsNullOrEmpty partitionKey then
+                container.CountAsync (PartitionKey.None, cancellationToken = cancellationToken)
+            else
+                container.CountAsync (PartitionKey partitionKey, cancellationToken)
 
+        /// <summary>
+        /// Counts the number of items in the container with specified <see cref="QueryRequestOptions"/>.
+        /// </summary>
+        /// <param name="requestOptions">Request options</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         member container.LongCountAsync (requestOptions : QueryRequestOptions, [<Optional>] cancellationToken : CancellationToken) =
             container.GetItemQueryIterator<int64> (countQuery, requestOptions = getRequestOptionsWithMaxItemCount1 requestOptions)
             |> TaskSeq.ofFeedIteratorWithCancellation cancellationToken
             |> TaskSeq.tryHead
             |> Task.map (Option.defaultValue 0)
 
+        /// <summary>
+        /// Counts the number of items in the container partition with specified key.
+        /// <para>
+        /// If no partition key is provided, the count will be for the entire container.
+        /// </para>
+        /// </summary>
+        /// <param name="partitionKey">Partition key</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         member container.LongCountAsync (partitionKey, [<Optional>] cancellationToken : CancellationToken) =
             container.LongCountAsync (QueryRequestOptions (PartitionKey = partitionKey), cancellationToken)
 
+        /// <summary>
+        /// Counts the number of items in the container partition with specified key.
+        /// <para>
+        /// If no partition key is provided, the count will be for the entire container.
+        /// </para>
+        /// </summary>
+        /// <param name="partitionKey">Partition key</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         member container.LongCountAsync (partitionKey : string, [<Optional>] cancellationToken : CancellationToken) =
             container.LongCountAsync (PartitionKey partitionKey, cancellationToken)
 
+        /// <summary>
+        /// Checks if an item with specified Id exists in the container.
+        /// </summary>
+        /// <param name="id">Item Id</param>
+        /// <param name="requestOptions">Request options</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         member container.ExistsAsync
             (id : string, [<Optional>] requestOptions : QueryRequestOptions, [<Optional>] cancellationToken : CancellationToken)
             =
@@ -112,9 +163,21 @@ module Operations =
                 return count = 1
             }
 
+        /// <summary>
+        /// Checks if an item with specified Id exists in the container partition with specified key.
+        /// </summary>
+        /// <param name="id">Item Id</param>
+        /// <param name="partitionKey">Partition key</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         member container.ExistsAsync (id : string, partitionKey : PartitionKey, [<Optional>] cancellationToken : CancellationToken) =
             container.ExistsAsync (id, QueryRequestOptions (PartitionKey = partitionKey), cancellationToken)
 
+        /// <summary>
+        /// Checks if an item with specified Id exists in the container partition with specified key.
+        /// </summary>
+        /// <param name="id">Item Id</param>
+        /// <param name="partitionKey">Partition key</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         member container.IsNotDeletedAsync
             deletedFieldName
             (id : string, [<Optional>] requiestOptions : QueryRequestOptions, [<Optional>] cancellationToken : CancellationToken)

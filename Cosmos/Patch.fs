@@ -6,7 +6,7 @@ open System.Linq
 open Microsoft.Azure.Cosmos
 
 [<Struct>]
-type PatchOperation<'a> = {
+type PatchOperation<'T> = {
     Operations : PatchOperation list
     Id : string
     PartitionKey : PartitionKey
@@ -15,7 +15,7 @@ type PatchOperation<'a> = {
 
 open System
 
-type PatchBuilder<'a> (enableContentResponseOnWrite : bool) =
+type PatchBuilder<'T> (enableContentResponseOnWrite : bool) =
     member _.Yield _ =
         {
             Operations = []
@@ -23,44 +23,45 @@ type PatchBuilder<'a> (enableContentResponseOnWrite : bool) =
             PartitionKey = PartitionKey.None
             RequestOptions = PatchItemRequestOptions (EnableContentResponseOnWrite = enableContentResponseOnWrite)
         }
-        : PatchOperation<'a>
+        : PatchOperation<'T>
 
     /// Adds the <see href"PatchOp">Patch operation</see>
     [<CustomOperation "operation">]
-    member _.Operation (state : PatchOperation<'a>, operation) = { state with Operations = operation :: state.Operations }
+    member _.Operation (state : PatchOperation<'T>, operation) = { state with Operations = operation :: state.Operations }
 
     /// Sets the item being to Patch existing with
     [<CustomOperation "id">]
-    member _.Id (state : PatchOperation<'a>, id) = { state with Id = id }
+    member _.Id (state : PatchOperation<'T>, id) = { state with Id = id }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : PatchOperation<'a>, partitionKey : PartitionKey) = { state with PartitionKey = partitionKey }
+    member _.PartitionKey (state : PatchOperation<'T>, partitionKey : PartitionKey) = { state with PartitionKey = partitionKey }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : PatchOperation<'a>, partitionKey : string) = {
+    member _.PartitionKey (state : PatchOperation<'T>, partitionKey : string) = {
         state with
             PartitionKey = (PartitionKey partitionKey)
     }
 
     /// Sets the request options
     [<CustomOperation "requestOptions">]
-    member _.RequestOptions (state : PatchOperation<'a>, options : PatchItemRequestOptions) =
+    member _.RequestOptions (state : PatchOperation<'T>, options : PatchItemRequestOptions) =
         options.EnableContentResponseOnWrite <- state.RequestOptions.EnableContentResponseOnWrite
         { state with RequestOptions = options }
 
     /// Sets the eTag to <see href="IfMatchEtag">IfMatchEtag</see>
     [<CustomOperation "eTag">]
-    member _.ETag (state : PatchOperation<'a>, eTag : string) =
+    member _.ETag (state : PatchOperation<'T>, eTag : string) =
         state.RequestOptions.IfMatchEtag <- eTag
         state
 
-let patch<'a> = PatchBuilder<'a> (false)
-let patchWithContentResponse<'a> = PatchBuilder<'a> (true)
+let patch<'T> = PatchBuilder<'T> (false)
+let patchWithContentResponse<'T> = PatchBuilder<'T> (true)
 
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
+/// Represents the result of a patch operation.
 type PatchResult<'t> =
     | Ok of 't // 200
     | NotExecuted
@@ -85,10 +86,15 @@ open System.Threading.Tasks
 
 type Microsoft.Azure.Cosmos.Container with
 
-    member container.PlainExecuteAsync<'a>
-        (operation : PatchOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
+    /// <summary>
+    /// Executes a patch operation and returns <see cref="ItemResponse{T}"/>.
+    /// </summary>
+    /// <param name="operation">Patch operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.PlainExecuteAsync<'T>
+        (operation : PatchOperation<'T>, [<Optional>] cancellationToken : CancellationToken)
         =
-        container.PatchItemAsync<'a> (
+        container.PatchItemAsync<'T> (
             operation.Id,
             operation.PartitionKey,
             operation.Operations.ToImmutableList (),
@@ -96,24 +102,36 @@ type Microsoft.Azure.Cosmos.Container with
             cancellationToken = cancellationToken
         )
 
-    member private container.ExecuteCoreAsync<'a>
-        (operation : PatchOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
+    member private container.ExecuteCoreAsync<'T>
+        (operation : PatchOperation<'T>, [<Optional>] cancellationToken : CancellationToken)
         =
         task {
             try
-                let! response = container.PlainExecuteAsync<'a> (operation, cancellationToken)
+                let! response = container.PlainExecuteAsync<'T> (operation, cancellationToken)
                 return CosmosResponse.fromItemResponse PatchResult.Ok response
             with HandleException ex ->
                 return CosmosResponse.fromException toPatchResult ex
         }
 
-    member container.ExecuteAsync<'a> (operation : PatchOperation<'a>, [<Optional>] cancellationToken : CancellationToken) =
+    /// <summary>
+    /// Executes a patch operation safely and returns <see cref="CosmosResponse{PatchResult{T}}"/>.
+    /// <para>
+    /// Requires ETag to be set in <see cref="PatchItemRequestOptions"/>.
+    /// </summary>
+    /// <param name="operation">Patch operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.ExecuteAsync<'T> (operation : PatchOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
         if String.IsNullOrEmpty operation.RequestOptions.IfMatchEtag then
             invalidArg "eTag" "Safe patch requires ETag"
 
-        container.ExecuteCoreAsync<'a> (operation, cancellationToken)
+        container.ExecuteCoreAsync<'T> (operation, cancellationToken)
 
-    member container.ExecuteOverwriteAsync<'a>
-        (operation : PatchOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
+    /// <summary>
+    /// Executes a patch operation and returns <see cref="CosmosResponse{PatchResult{T}}"/>.
+    /// </summary>
+    /// <param name="operation">Patch operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.ExecuteOverwriteAsync<'T>
+        (operation : PatchOperation<'T>, [<Optional>] cancellationToken : CancellationToken)
         =
-        container.ExecuteCoreAsync<'a> (operation, cancellationToken)
+        container.ExecuteCoreAsync<'T> (operation, cancellationToken)

@@ -61,6 +61,7 @@ let delete = DeleteBuilder ()
 
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
+/// Represents the result of a delete operation.
 type DeleteResult<'t> =
     | Ok of 't // 200
     | NotFound of ResponseBody : string // 404
@@ -78,6 +79,11 @@ open System.Threading.Tasks
 
 type Microsoft.Azure.Cosmos.Container with
 
+    /// <summary>
+    /// Executes a delete operation
+    /// </summary>
+    /// <param name="operation">Delete operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     member container.PlainExecuteAsync (operation : DeleteOperation, [<Optional>] cancellationToken : CancellationToken) =
         container.DeleteItemAsync (
             operation.Id,
@@ -86,6 +92,11 @@ type Microsoft.Azure.Cosmos.Container with
             cancellationToken = cancellationToken
         )
 
+    /// <summary>
+    /// Executes a delete operation and returns <see cref="CosmosResponse{DeleteResult}"/>.
+    /// </summary>
+    /// <param name="operation">Delete operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     member container.ExecuteAsync (operation : DeleteOperation, [<Optional>] cancellationToken : CancellationToken) = task {
         try
             let! response = container.PlainExecuteAsync (operation, cancellationToken)

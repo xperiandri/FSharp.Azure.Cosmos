@@ -4,7 +4,7 @@ module FSharp.Azure.Cosmos.Read
 open Microsoft.Azure.Cosmos
 
 [<Struct>]
-type ReadOperation<'a> = {
+type ReadOperation<'T> = {
     Id : string
     PartitionKey : PartitionKey
     RequestOptions : ItemRequestOptions
@@ -12,14 +12,14 @@ type ReadOperation<'a> = {
 
 open System
 
-type ReadBuilder<'a> () =
+type ReadBuilder<'T> () =
     member _.Yield _ =
         {
             Id = String.Empty
             PartitionKey = PartitionKey.None
             RequestOptions = Unchecked.defaultof<_>
         }
-        : ReadOperation<'a>
+        : ReadOperation<'T>
 
     /// Sets the item being creeated
     [<CustomOperation "id">]
@@ -57,10 +57,11 @@ type ReadBuilder<'a> () =
             state.RequestOptions.IfNoneMatchEtag <- eTag
             state
 
-let read<'a> = ReadBuilder<'a> ()
+let read<'T> = ReadBuilder<'T> ()
 
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
+/// Represents the result of a read operation.
 type ReadResult<'t> =
     | Ok of 't // 200
     | NotChanged // 204
@@ -79,25 +80,43 @@ open System.Threading.Tasks
 
 type Microsoft.Azure.Cosmos.Container with
 
+    /// <summary>
+    /// Executes a read operation and returns <see cref="ItemResponse{T}"/>.
+    /// </summary>
+    /// <param name="operation">Read operation</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    member container.PlainExecuteAsync (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
+        container.ReadItemAsync<'T> (
+            operation.Id,
+            operation.PartitionKey,
+            operation.RequestOptions,
+            cancellationToken = cancellationToken
+        )
+
+    /// <summary>
+    /// Executes a read operation, transforms success or failure, and returns <see cref="CosmosResponse{T}"/>.
+    /// </summary>
+    /// <param name="operation">Read operation</param>
+    /// <param name="success">Result transform if success</param>
+    /// <param name="failure">Error transform if failure</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     member container.ExecuteAsync
-        (operation : ReadOperation<'a>, success, failure, [<Optional>] cancellationToken : CancellationToken)
+        (operation : ReadOperation<'T>, success, failure, [<Optional>] cancellationToken : CancellationToken)
         =
         task {
             try
-                let! result =
-                    container.ReadItemAsync<'a> (
-                        operation.Id,
-                        operation.PartitionKey,
-                        operation.RequestOptions,
-                        cancellationToken = cancellationToken
-                    )
-
+                let! result = container.PlainExecuteAsync (operation, cancellationToken)
                 return CosmosResponse.fromItemResponse (success) result
             with HandleException ex ->
                 return CosmosResponse.fromException (failure) ex
         }
 
-    member container.ExecuteAsync (operation : ReadOperation<'a>, [<Optional>] cancellationToken : CancellationToken) =
+    /// <summary>
+    /// Executes a read operation and returns <see cref="CosmosResponse{ReadResult{T}}"/>.
+    /// </summary>
+    /// <param name="operation">Read operation</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    member container.ExecuteAsync (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
         let successFn =
             function
             | null -> ReadResult.NotChanged
@@ -105,8 +124,18 @@ type Microsoft.Azure.Cosmos.Container with
 
         container.ExecuteAsync (operation, successFn, toReadResult ReadResult.NotFound, cancellationToken)
 
-    member container.ExecuteAsyncOption (operation : ReadOperation<'a>, [<Optional>] cancellationToken : CancellationToken) =
+    /// <summary>
+    /// Executes a read operation and returns <see cref="CosmosResponse{FSharpValueOption{T}}"/>.
+    /// </summary>
+    /// <param name="operation">Read operation</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    member container.ExecuteAsyncOption (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
         container.ExecuteAsync (operation, Some, toReadResult (fun _ -> None), cancellationToken)
 
-    member container.ExecuteAsyncValueOption (operation : ReadOperation<'a>, [<Optional>] cancellationToken : CancellationToken) =
+    /// <summary>
+    /// Executes a read operation and returns <see cref="CosmosResponse{FSharpOption{T}}"/>.
+    /// </summary>
+    /// <param name="operation">Read operation</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    member container.ExecuteAsyncValueOption (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
         container.ExecuteAsync (operation, ValueSome, toReadResult (fun _ -> ValueNone), cancellationToken)

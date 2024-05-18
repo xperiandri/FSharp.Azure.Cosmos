@@ -4,30 +4,30 @@ module FSharp.Azure.Cosmos.Upsert
 open Microsoft.Azure.Cosmos
 
 [<Struct>]
-type UpsertOperation<'a> = {
-    Item : 'a
+type UpsertOperation<'T> = {
+    Item : 'T
     PartitionKey : PartitionKey voption
     RequestOptions : ItemRequestOptions
 }
 
 [<Struct>]
-type UpsertConcurrentlyOperation<'a, 'e> = {
+type UpsertConcurrentlyOperation<'T, 'E> = {
     Id : string
     PartitionKey : PartitionKey voption
     RequestOptions : ItemRequestOptions
-    UpdateOrCreate : 'a option -> Async<Result<'a, 'e>>
+    UpdateOrCreate : 'T option -> Async<Result<'T, 'E>>
 }
 
 open System
 
-type UpsertBuilder<'a> (enableContentResponseOnWrite : bool) =
+type UpsertBuilder<'T> (enableContentResponseOnWrite : bool) =
     member _.Yield _ =
         {
             Item = Unchecked.defaultof<_>
             PartitionKey = ValueNone
             RequestOptions = ItemRequestOptions (EnableContentResponseOnWrite = enableContentResponseOnWrite)
         }
-        : UpsertOperation<'a>
+        : UpsertOperation<'T>
 
     /// Sets the item being creeated
     [<CustomOperation "item">]
@@ -59,7 +59,7 @@ type UpsertBuilder<'a> (enableContentResponseOnWrite : bool) =
         state.RequestOptions.IfMatchEtag <- eTag
         state
 
-type UpsertConcurrentlyBuilder<'a, 'e> (enableContentResponseOnWrite : bool) =
+type UpsertConcurrentlyBuilder<'T, 'E> (enableContentResponseOnWrite : bool) =
     member _.Yield _ =
         {
             Id = String.Empty
@@ -71,7 +71,7 @@ type UpsertConcurrentlyBuilder<'a, 'e> (enableContentResponseOnWrite : bool) =
                     raise
                     <| MissingMethodException ("Update function is not set for concurrent upsert operation")
         }
-        : UpsertConcurrentlyOperation<'a, 'e>
+        : UpsertConcurrentlyOperation<'T, 'E>
 
     /// Sets the item being to upsert existing with
     [<CustomOperation "id">]
@@ -99,19 +99,20 @@ type UpsertConcurrentlyBuilder<'a, 'e> (enableContentResponseOnWrite : bool) =
 
     /// Sets the partition key
     [<CustomOperation "updateOrCreate">]
-    member _.UpdateOrCreate (state : UpsertConcurrentlyOperation<_, _>, update : 'a option -> Async<Result<'a, 't>>) = {
+    member _.UpdateOrCreate (state : UpsertConcurrentlyOperation<_, _>, update : 'T option -> Async<Result<'T, 't>>) = {
         state with
             UpdateOrCreate = update
     }
 
-let upsert<'a> = UpsertBuilder<'a> (false)
-let upsertAndRead<'a> = UpsertBuilder<'a> (true)
+let upsert<'T> = UpsertBuilder<'T> (false)
+let upsertAndRead<'T> = UpsertBuilder<'T> (true)
 
-let upsertConcurrenly<'a, 'e> = UpsertConcurrentlyBuilder<'a, 'e> (false)
-let upsertConcurrenlyAndRead<'a, 'e> = UpsertConcurrentlyBuilder<'a, 'e> (true)
+let upsertConcurrenly<'T, 'E> = UpsertConcurrentlyBuilder<'T, 'E> (false)
+let upsertConcurrenlyAndRead<'T, 'E> = UpsertConcurrentlyBuilder<'T, 'E> (true)
 
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
+/// Represents the result of an upsert operation.
 type UpsertResult<'t> =
     | Ok of 't // 200
     | BadRequest of ResponseBody : string // 400
@@ -119,13 +120,14 @@ type UpsertResult<'t> =
     | EntityTooLarge of ResponseBody : string // 413
     | TooManyRequests of ResponseBody : string * RetryAfter : TimeSpan voption // 429
 
-type UpsertConcurrentResult<'t, 'e> =
+/// Represents the result of an upsert operation.
+type UpsertConcurrentResult<'t, 'E> =
     | Ok of 't // 200
     | BadRequest of ResponseBody : string // 400
     | ModifiedBefore of ResponseBody : string //412 - need re-do
     | EntityTooLarge of ResponseBody : string // 413
     | TooManyRequests of ResponseBody : string * RetryAfter : TimeSpan voption // 429
-    | CustomError of Error : 'e
+    | CustomError of Error : 'E
 
 open System.Net
 
@@ -214,18 +216,23 @@ let DefaultMaxRetryCount = 10
 
 type Microsoft.Azure.Cosmos.Container with
 
-    member container.PlainExecuteAsync<'a>
-        (operation : UpsertOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
+    /// <summary>
+    /// Executes an upsert operation and returns <see cref="ItemResponse{T}"/>.
+    /// </summary>
+    /// <param name="operation">Upsert operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.PlainExecuteAsync<'T>
+        (operation : UpsertOperation<'T>, [<Optional>] cancellationToken : CancellationToken)
         =
-        container.UpsertItemAsync<'a> (
+        container.UpsertItemAsync<'T> (
             operation.Item,
             operation.PartitionKey |> ValueOption.toNullable,
             operation.RequestOptions,
             cancellationToken = cancellationToken
         )
 
-    member private container.ExecuteCoreAsync<'a>
-        (operation : UpsertOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
+    member private container.ExecuteCoreAsync<'T>
+        (operation : UpsertOperation<'T>, [<Optional>] cancellationToken : CancellationToken)
         =
         task {
             try
@@ -235,27 +242,51 @@ type Microsoft.Azure.Cosmos.Container with
                 return CosmosResponse.fromException toUpsertResult ex
         }
 
-    member container.ExecuteAsync<'a> (operation : UpsertOperation<'a>, [<Optional>] cancellationToken : CancellationToken) =
+    /// <summary>
+    /// Executes an upsert operation safely and returns <see cref="CosmosResponse{UpsertResult{T}}"/>.
+    /// <para>
+    /// Requires ETag to be set in <see cref="ItemRequestOptions"/>.
+    /// </para>
+    /// </summary>
+    /// <param name="operation">Upsert operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.ExecuteAsync<'T> (operation : UpsertOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
         if String.IsNullOrEmpty operation.RequestOptions.IfMatchEtag then
             invalidArg "eTag" "Safe replace requires ETag"
 
         container.ExecuteCoreAsync (operation, cancellationToken)
 
-    member container.ExecuteOverwriteAsync<'a>
-        (operation : UpsertOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
+    /// <summary>
+    /// Executes an upsert operation replacing existing item if it exists and returns <see cref="CosmosResponse{UpsertResult{T}}"/>.
+    /// </summary>
+    /// <param name="operation">Upsert operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.ExecuteOverwriteAsync<'T>
+        (operation : UpsertOperation<'T>, [<Optional>] cancellationToken : CancellationToken)
         =
         container.ExecuteCoreAsync (operation, cancellationToken)
 
-    member container.ExecuteConcurrentlyAsync<'a, 'e>
+    /// <summary>
+    /// Executes an upsert operation by applying change to item if exists and returns <see cref="CosmosResponse{UpsertConcurrentResult{T, E}}"/>.
+    /// </summary>
+    /// <param name="operation">Upsert operation.</param>
+    /// <param name="maxRetryCount">Max retry count. Default is 10.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.ExecuteConcurrentlyAsync<'T, 'E>
         (
-            operation : UpsertConcurrentlyOperation<'a, 'e>,
+            operation : UpsertConcurrentlyOperation<'T, 'E>,
             [<Optional; DefaultParameterValue(DefaultMaxRetryCount)>] maxRetryCount : int,
             [<Optional>] cancellationToken : CancellationToken
         )
         =
-        executeConcurrentlyAsync<'a, 'e> cancellationToken container operation maxRetryCount
+        executeConcurrentlyAsync<'T, 'E> cancellationToken container operation maxRetryCount
 
-    member container.ExecuteConcurrentlyAsync<'a, 'e>
-        (operation : UpsertConcurrentlyOperation<'a, 'e>, [<Optional>] cancellationToken : CancellationToken)
+    /// <summary>
+    /// Executes an upsert operation by applying change to item if exists and returns <see cref="CosmosResponse{UpsertConcurrentResult{T, E}}"/>.
+    /// </summary>
+    /// <param name="operation">Upsert operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.ExecuteConcurrentlyAsync<'T, 'E>
+        (operation : UpsertConcurrentlyOperation<'T, 'E>, [<Optional>] cancellationToken : CancellationToken)
         =
-        executeConcurrentlyAsync<'a, 'e> cancellationToken container operation DefaultMaxRetryCount
+        executeConcurrentlyAsync<'T, 'E> cancellationToken container operation DefaultMaxRetryCount

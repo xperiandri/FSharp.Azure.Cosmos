@@ -4,10 +4,13 @@ open System
 open System.Net
 open Microsoft.Azure.Cosmos
 
-type CosmosResponse<'t> = {
+/// <summary>
+/// Represents the response from a Cosmos DB operation.
+/// </summary>
+type CosmosResponse<'T> = {
     HttpStatusCode : HttpStatusCode
     Headers : Headers
-    Result : 't
+    Result : 'T
     Diagnostics : CosmosDiagnostics
 } with
 
@@ -26,7 +29,7 @@ type CosmosResponse<'t> = {
 
 module CosmosResponse =
 
-    let fromItemResponse (successFn : 't -> 'r) (response : ItemResponse<'t>) = {
+    let fromItemResponse (successFn : 'T -> 'Result) (response : ItemResponse<'T>) = {
         HttpStatusCode = response.StatusCode
         Headers = response.Headers
         Result = successFn response.Resource
@@ -40,6 +43,6 @@ module CosmosResponse =
         Diagnostics = ex.Diagnostics
     }
 
-    let toException<'t> (t : CosmosResponse<'t>) =
-        let ex = new CosmosException ("", t.HttpStatusCode, 0, "", 0.0)
+    let toException<'T> (response : CosmosResponse<'T>) =
+        let ex = new CosmosException ("", response.HttpStatusCode, 0, "", response.Diagnostics.GetQueryMetrics().TotalRequestCharge)
         ex

@@ -5,20 +5,20 @@ open System
 open Microsoft.Azure.Cosmos
 
 [<Struct>]
-type CreateOperation<'a> = {
-    Item : 'a
+type CreateOperation<'T> = {
+    Item : 'T
     PartitionKey : PartitionKey voption
     RequestOptions : ItemRequestOptions
 }
 
-type CreateBuilder<'a> (enableContentResponseOnWrite : bool) =
+type CreateBuilder<'T> (enableContentResponseOnWrite : bool) =
     member _.Yield _ =
         {
             Item = Unchecked.defaultof<_>
             PartitionKey = ValueNone
             RequestOptions = ItemRequestOptions (EnableContentResponseOnWrite = enableContentResponseOnWrite)
         }
-        : CreateOperation<'a>
+        : CreateOperation<'T>
 
     /// Sets the item being created
     [<CustomOperation "item">]
@@ -44,11 +44,12 @@ type CreateBuilder<'a> (enableContentResponseOnWrite : bool) =
         options.EnableContentResponseOnWrite <- enableContentResponseOnWrite
         { state with RequestOptions = options }
 
-let create<'a> = CreateBuilder<'a> (false)
-let createAndRead<'a> = CreateBuilder<'a> (true)
+let create<'T> = CreateBuilder<'T> (false)
+let createAndRead<'T> = CreateBuilder<'T> (true)
 
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
+/// Represents the result of a create operation.
 type CreateResult<'t> =
     | Ok of 't // 201
     | BadRequest of ResponseBody : string // 400
@@ -71,17 +72,27 @@ open System.Threading.Tasks
 
 type Microsoft.Azure.Cosmos.Container with
 
-    member container.PlainExecuteAsync<'a> (operation : CreateOperation<'a>, [<Optional>] cancellationToken : CancellationToken) =
-        container.CreateItemAsync<'a> (
+    /// <summary>
+    /// Executes a create operation and returns <see cref="ItemResponse{T}"/>.
+    /// </summary>
+    /// <param name="operation">Create operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.PlainExecuteAsync<'T> (operation : CreateOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
+        container.CreateItemAsync<'T> (
             operation.Item,
             operation.PartitionKey |> ValueOption.toNullable,
             operation.RequestOptions,
             cancellationToken = cancellationToken
         )
 
-    member container.ExecuteAsync<'a>
-        (operation : CreateOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
-        : Task<CosmosResponse<CreateResult<'a>>>
+    /// <summary>
+    /// Executes a create operation and returns <see cref="CosmosResponse{CreateResult{T}}"/>.
+    /// </summary>
+    /// <param name="operation">Create operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.ExecuteAsync<'T>
+        (operation : CreateOperation<'T>, [<Optional>] cancellationToken : CancellationToken)
+        : Task<CosmosResponse<CreateResult<'T>>>
         =
         task {
             try

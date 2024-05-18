@@ -4,24 +4,24 @@ module FSharp.Azure.Cosmos.Replace
 open Microsoft.Azure.Cosmos
 
 [<Struct>]
-type ReplaceOperation<'a> = {
-    Item : 'a
+type ReplaceOperation<'T> = {
+    Item : 'T
     Id : string
     PartitionKey : PartitionKey voption
     RequestOptions : ItemRequestOptions
 }
 
 [<Struct>]
-type ReplaceConcurrentlyOperation<'a, 'e> = {
+type ReplaceConcurrentlyOperation<'T, 'E> = {
     Id : string
     PartitionKey : PartitionKey voption
     RequestOptions : ItemRequestOptions
-    Update : 'a -> Async<Result<'a, 'e>>
+    Update : 'T -> Async<Result<'T, 'E>>
 }
 
 open System
 
-type ReplaceBuilder<'a> (enableContentResponseOnWrite : bool) =
+type ReplaceBuilder<'T> (enableContentResponseOnWrite : bool) =
     member _.Yield _ =
         {
             Item = Unchecked.defaultof<_>
@@ -29,7 +29,7 @@ type ReplaceBuilder<'a> (enableContentResponseOnWrite : bool) =
             PartitionKey = ValueNone
             RequestOptions = ItemRequestOptions (EnableContentResponseOnWrite = enableContentResponseOnWrite)
         }
-        : ReplaceOperation<'a>
+        : ReplaceOperation<'T>
 
     /// Sets the item being to replace existing with
     [<CustomOperation "item">]
@@ -66,7 +66,7 @@ type ReplaceBuilder<'a> (enableContentResponseOnWrite : bool) =
         state.RequestOptions.IfMatchEtag <- eTag
         state
 
-type ReplaceConcurrentlyBuilder<'a, 'e> (enableContentResponseOnWrite : bool) =
+type ReplaceConcurrentlyBuilder<'T, 'E> (enableContentResponseOnWrite : bool) =
     member _.Yield _ =
         {
             Id = String.Empty
@@ -77,7 +77,7 @@ type ReplaceConcurrentlyBuilder<'a, 'e> (enableContentResponseOnWrite : bool) =
                     raise
                     <| MissingMethodException ("Update function is not set for concurrent replace operation")
         }
-        : ReplaceConcurrentlyOperation<'a, 'e>
+        : ReplaceConcurrentlyOperation<'T, 'E>
 
     /// Sets the item being to replace existing with
     [<CustomOperation "id">]
@@ -105,19 +105,20 @@ type ReplaceConcurrentlyBuilder<'a, 'e> (enableContentResponseOnWrite : bool) =
 
     /// Sets the partition key
     [<CustomOperation "update">]
-    member _.Update (state : ReplaceConcurrentlyOperation<_, _>, update : 'a -> Async<Result<'a, 't>>) = {
+    member _.Update (state : ReplaceConcurrentlyOperation<_, _>, update : 'T -> Async<Result<'T, 't>>) = {
         state with
             Update = update
     }
 
-let replace<'a> = ReplaceBuilder<'a> (false)
-let replaceAndRead<'a> = ReplaceBuilder<'a> (true)
+let replace<'T> = ReplaceBuilder<'T> (false)
+let replaceAndRead<'T> = ReplaceBuilder<'T> (true)
 
-let replaceConcurrenly<'a, 'e> = ReplaceConcurrentlyBuilder<'a, 'e> (false)
-let replaceConcurrenlyAndRead<'a, 'e> = ReplaceConcurrentlyBuilder<'a, 'e> (true)
+let replaceConcurrenly<'T, 'E> = ReplaceConcurrentlyBuilder<'T, 'E> (false)
+let replaceConcurrenlyAndRead<'T, 'E> = ReplaceConcurrentlyBuilder<'T, 'E> (true)
 
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
+/// Represents the result of a replace operation.
 type ReplaceResult<'t> =
     | Ok of 't // 200
     | BadRequest of ResponseBody : string // 400
@@ -126,14 +127,15 @@ type ReplaceResult<'t> =
     | EntityTooLarge of ResponseBody : string // 413
     | TooManyRequests of ResponseBody : string * RetryAfter : TimeSpan voption // 429
 
-type ReplaceConcurrentResult<'t, 'e> =
+/// Represents the result of a replace operation.
+type ReplaceConcurrentResult<'t, 'E> =
     | Ok of 't // 200
     | BadRequest of ResponseBody : string // 400
     | NotFound of ResponseBody : string // 404
     | ModifiedBefore of ResponseBody : string //412 - need re-do
     | EntityTooLarge of ResponseBody : string // 413
     | TooManyRequests of ResponseBody : string * RetryAfter : TimeSpan voption // 429
-    | CustomError of Error : 'e
+    | CustomError of Error : 'E
 
 open System.Net
 
@@ -208,10 +210,15 @@ let DefaultRetryCount = 10
 
 type Microsoft.Azure.Cosmos.Container with
 
-    member container.PlainExecuteAsync<'a>
-        (operation : ReplaceOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
+    /// <summary>
+    /// Executes a replace operation and returns <see cref="ItemResponse{T}"/>.
+    /// </summary>
+    /// <param name="operation">Replace operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.PlainExecuteAsync<'T>
+        (operation : ReplaceOperation<'T>, [<Optional>] cancellationToken : CancellationToken)
         =
-        container.ReplaceItemAsync<'a> (
+        container.ReplaceItemAsync<'T> (
             operation.Item,
             operation.Id,
             operation.PartitionKey |> ValueOption.toNullable,
@@ -219,8 +226,8 @@ type Microsoft.Azure.Cosmos.Container with
             cancellationToken = cancellationToken
         )
 
-    member private container.ExecuteCoreAsync<'a>
-        (operation : ReplaceOperation<'a>, [<Optional>] cancellationToken : CancellationToken)
+    member private container.ExecuteCoreAsync<'T>
+        (operation : ReplaceOperation<'T>, [<Optional>] cancellationToken : CancellationToken)
         =
         task {
             try
@@ -230,25 +237,49 @@ type Microsoft.Azure.Cosmos.Container with
                 return CosmosResponse.fromException toReplaceResult ex
         }
 
-    member container.ExecuteAsync<'a> (operation : ReplaceOperation<'a>, [<Optional>] cancellationToken : CancellationToken) =
+    /// <summary>
+    /// Executes a replace operation safely and returns <see cref="CosmosResponse{ReplaceResult{T}}"/>.
+    /// </summary>
+    /// <para>
+    /// Requires ETag to be set in <see cref="ItemRequestOptions"/>.
+    /// </para>
+    /// <param name="operation">Replace operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.ExecuteAsync<'T> (operation : ReplaceOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
         if String.IsNullOrEmpty operation.RequestOptions.IfMatchEtag then
             invalidArg "eTag" "Safe replace requires ETag"
 
         container.ExecuteCoreAsync (operation, cancellationToken)
 
-    member container.ExecuteOverwriteAsync<'a> (operation : ReplaceOperation<'a>, [<Optional>] cancellationToken : CancellationToken) =
+    /// <summary>
+    /// Executes a replace operation replacing existing item if it exists and returns <see cref="CosmosResponse{UpsertResult{T}}"/>.
+    /// </summary>
+    /// <param name="operation">Replace operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.ExecuteOverwriteAsync<'T> (operation : ReplaceOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
         container.ExecuteCoreAsync (operation, cancellationToken)
 
-    member container.ExecuteConcurrentlyAsync<'a, 'e>
+    /// <summary>
+    /// Executes a replace operation by applying change to item and returns <see cref="CosmosResponse{ReplaceConcurrentResult{T, E}}"/>.
+    /// </summary>
+    /// <param name="operation">Replace operation.</param>
+    /// <param name="maxRetryCount">Max retry count. Default is 10.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.ExecuteConcurrentlyAsync<'T, 'E>
         (
-            operation : ReplaceConcurrentlyOperation<'a, 'e>,
+            operation : ReplaceConcurrentlyOperation<'T, 'E>,
             [<Optional; DefaultParameterValue(DefaultRetryCount)>] maxRetryCount : int,
             [<Optional>] cancellationToken : CancellationToken
         )
         =
-        executeConcurrentlyAsync<'a, 'e> cancellationToken container operation maxRetryCount
+        executeConcurrentlyAsync<'T, 'E> cancellationToken container operation maxRetryCount
 
-    member container.ExecuteConcurrentlyAsync<'a, 'e>
-        (operation : ReplaceConcurrentlyOperation<'a, 'e>, [<Optional>] cancellationToken : CancellationToken)
+    /// <summary>
+    /// Executes a replace operation by applying change to item and returns <see cref="CosmosResponse{ReplaceConcurrentResult{T, E}}"/>.
+    /// </summary>
+    /// <param name="operation">Replace operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    member container.ExecuteConcurrentlyAsync<'T, 'E>
+        (operation : ReplaceConcurrentlyOperation<'T, 'E>, [<Optional>] cancellationToken : CancellationToken)
         =
-        executeConcurrentlyAsync<'a, 'e> cancellationToken container operation DefaultRetryCount
+        executeConcurrentlyAsync<'T, 'E> cancellationToken container operation DefaultRetryCount
