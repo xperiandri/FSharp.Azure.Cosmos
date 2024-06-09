@@ -143,3 +143,21 @@ type Microsoft.Azure.Cosmos.Container with
     member container.ExecuteAsyncValueOption<'T> (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
         container.ExecuteAsync<'T, 'T voption> (operation, ValueSome, toReadResult (fun message -> raise (invalidOp message)) (fun _ -> ValueNone), cancellationToken)
 
+open System.Runtime.CompilerServices
+
+[<AbstractClass; Sealed; Extension>]
+type FeedIteratorExtensions private () =
+
+    static let seqToReadResult (items : 'T seq) =
+        match items |> Seq.tryHead with
+        | Some item -> Ok item
+        | None -> NotFound "Item not found"
+
+    [<Extension>]
+    static member FirstAsync (iterator : FeedIterator<'T>, [<Optional>] cancellationToken : CancellationToken) = task {
+        try
+            let! page = iterator.ReadNextAsync cancellationToken
+            return CosmosResponse.fromFeedResponse seqToReadResult page
+        with HandleException ex ->
+            return CosmosResponse.fromException (toReadResult ReadResult.IncompatibleConsistencyLevel ReadResult.NotFound) ex
+    }

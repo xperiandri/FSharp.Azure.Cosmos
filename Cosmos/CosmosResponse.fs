@@ -36,6 +36,13 @@ module CosmosResponse =
         Diagnostics = response.Diagnostics
     }
 
+    let fromFeedResponse (successFn : 'T seq -> 'Result) (response : FeedResponse<'T>) = {
+        HttpStatusCode = response.StatusCode
+        Headers = response.Headers
+        Result = successFn response
+        Diagnostics = response.Diagnostics
+    }
+
     let fromException resultFn (ex : CosmosException) = {
         HttpStatusCode = ex.StatusCode
         Headers = ex.Headers
