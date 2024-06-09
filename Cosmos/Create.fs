@@ -50,10 +50,13 @@ let createAndRead<'T> = CreateBuilder<'T> (true)
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
 /// Represents the result of a create operation.
-type CreateResult<'t> =
-    | Ok of 't // 201
+type CreateResult<'T> =
+    | Ok of 'T // 201
     | BadRequest of ResponseBody : string // 400
-    | Conflict of ResponseBody : string // 409
+    /// Forbidden
+    | PartitionStorageLimitReached of ResponseBody : string // 403
+    /// Conflict
+    | IdAlreadyExists of ResponseBody : string // 409
     | EntityTooLarge of ResponseBody : string // 413
     | TooManyRequests of ResponseBody : string * RetryAfter : TimeSpan voption // 429
 
@@ -61,7 +64,8 @@ open System.Net
 let private toCreateResult (ex : CosmosException) =
     match ex.StatusCode with
     | HttpStatusCode.BadRequest -> CreateResult.BadRequest ex.ResponseBody
-    | HttpStatusCode.Conflict -> CreateResult.Conflict ex.ResponseBody
+    | HttpStatusCode.Forbidden -> CreateResult.PartitionStorageLimitReached ex.ResponseBody
+    | HttpStatusCode.Conflict -> CreateResult.IdAlreadyExists ex.ResponseBody
     | HttpStatusCode.RequestEntityTooLarge -> CreateResult.EntityTooLarge ex.ResponseBody
     | HttpStatusCode.TooManyRequests -> CreateResult.TooManyRequests (ex.ResponseBody, ex.RetryAfter |> ValueOption.ofNullable)
     | _ -> raise ex

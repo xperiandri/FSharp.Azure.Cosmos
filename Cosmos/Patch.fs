@@ -67,7 +67,8 @@ type PatchResult<'t> =
     | NotExecuted
     | BadRequest of ResponseBody : string // 400
     | NotFound of ResponseBody : string // 404
-    | ModifiedBefore of ResponseBody : string //412 - need re-do
+    /// Precondition failed
+    | ModifiedBefore of ResponseBody : string // 412 - need re-do
     | TooManyRequests of ResponseBody : string * RetryAfter : TimeSpan voption // 429
 
 open System.Net

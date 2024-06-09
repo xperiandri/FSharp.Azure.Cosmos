@@ -64,13 +64,15 @@ let read<'T> = ReadBuilder<'T> ()
 /// Represents the result of a read operation.
 type ReadResult<'t> =
     | Ok of 't // 200
-    | NotChanged // 204
+    | NotModified // 204
+    | IncompatibleConsistencyLevel of ResponseBody : string // 400
     | NotFound of ResponseBody : string // 404
 
 open System.Net
 
-let private toReadResult notFoundResultCtor (ex : CosmosException) =
+let private toReadResult badRequestCtor notFoundResultCtor (ex : CosmosException) =
     match ex.StatusCode with
+    | HttpStatusCode.BadRequest -> badRequestCtor ex.ResponseBody
     | HttpStatusCode.NotFound -> notFoundResultCtor ex.ResponseBody
     | _ -> raise ex
 
@@ -85,7 +87,7 @@ type Microsoft.Azure.Cosmos.Container with
     /// </summary>
     /// <param name="operation">Read operation</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    member container.PlainExecuteAsync (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
+    member container.PlainExecuteAsync<'T> (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
         container.ReadItemAsync<'T> (
             operation.Id,
             operation.PartitionKey,
@@ -100,9 +102,9 @@ type Microsoft.Azure.Cosmos.Container with
     /// <param name="success">Result transform if success</param>
     /// <param name="failure">Error transform if failure</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    member container.ExecuteAsync
+    member container.ExecuteAsync<'T, 'Result>
         (operation : ReadOperation<'T>, success, failure, [<Optional>] cancellationToken : CancellationToken)
-        =
+        : Task<CosmosResponse<'Result>> =
         task {
             try
                 let! result = container.PlainExecuteAsync (operation, cancellationToken)
@@ -116,26 +118,28 @@ type Microsoft.Azure.Cosmos.Container with
     /// </summary>
     /// <param name="operation">Read operation</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    member container.ExecuteAsync (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
-        let successFn =
-            function
-            | null -> ReadResult.NotChanged
-            | item -> ReadResult.Ok item
+    member container.ExecuteAsync<'T> (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
+        let successFn result : ReadResult<'T> =
+            if Object.Equals(result, Unchecked.defaultof<'T>) then
+                ReadResult.NotModified
+            else
+                ReadResult.Ok result
 
-        container.ExecuteAsync (operation, successFn, toReadResult ReadResult.NotFound, cancellationToken)
+        container.ExecuteAsync<'T, ReadResult<'T>> (operation, successFn, toReadResult ReadResult.IncompatibleConsistencyLevel ReadResult.NotFound, cancellationToken)
 
     /// <summary>
     /// Executes a read operation and returns <see cref="CosmosResponse{FSharpValueOption{T}}"/>.
     /// </summary>
     /// <param name="operation">Read operation</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    member container.ExecuteAsyncOption (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
-        container.ExecuteAsync (operation, Some, toReadResult (fun _ -> None), cancellationToken)
+    member container.ExecuteAsyncOption<'T> (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
+        container.ExecuteAsync<'T, 'T option> (operation, Some, toReadResult (fun message -> raise (invalidOp message)) (fun _ -> None), cancellationToken)
 
     /// <summary>
     /// Executes a read operation and returns <see cref="CosmosResponse{FSharpOption{T}}"/>.
     /// </summary>
     /// <param name="operation">Read operation</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    member container.ExecuteAsyncValueOption (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
-        container.ExecuteAsync (operation, ValueSome, toReadResult (fun _ -> ValueNone), cancellationToken)
+    member container.ExecuteAsyncValueOption<'T> (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
+        container.ExecuteAsync<'T, 'T voption> (operation, ValueSome, toReadResult (fun message -> raise (invalidOp message)) (fun _ -> ValueNone), cancellationToken)
+

@@ -119,20 +119,22 @@ let replaceConcurrenlyAndRead<'T, 'E> = ReplaceConcurrentlyBuilder<'T, 'E> (true
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 
 /// Represents the result of a replace operation.
-type ReplaceResult<'t> =
-    | Ok of 't // 200
+type ReplaceResult<'T> =
+    | Ok of 'T // 200
     | BadRequest of ResponseBody : string // 400
     | NotFound of ResponseBody : string // 404
-    | ModifiedBefore of ResponseBody : string //412 - need re-do
+    /// Precondition failed
+    | ModifiedBefore of ResponseBody : string // 412 - need re-do
     | EntityTooLarge of ResponseBody : string // 413
     | TooManyRequests of ResponseBody : string * RetryAfter : TimeSpan voption // 429
 
 /// Represents the result of a replace operation.
-type ReplaceConcurrentResult<'t, 'E> =
-    | Ok of 't // 200
+type ReplaceConcurrentResult<'T, 'E> =
+    | Ok of 'T // 200
     | BadRequest of ResponseBody : string // 400
     | NotFound of ResponseBody : string // 404
-    | ModifiedBefore of ResponseBody : string //412 - need re-do
+    /// Precondition failed
+    | ModifiedBefore of ResponseBody : string // 412 - need re-do
     | EntityTooLarge of ResponseBody : string // 413
     | TooManyRequests of ResponseBody : string * RetryAfter : TimeSpan voption // 429
     | CustomError of Error : 'E
