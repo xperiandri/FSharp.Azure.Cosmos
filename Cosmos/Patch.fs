@@ -29,6 +29,10 @@ type PatchBuilder<'T> (enableContentResponseOnWrite : bool) =
     [<CustomOperation "operation">]
     member _.Operation (state : PatchOperation<'T>, operation) = { state with Operations = operation :: state.Operations }
 
+    /// <summary>Adds the <see cref="PatchOperation"/></summary>
+    [<CustomOperation "operations">]
+    member _.Operations (state : PatchOperation<'T>, operations) = { state with Operations = state.Operations @ operations }
+
     /// Sets the item being to Patch existing with
     [<CustomOperation "id">]
     member _.Id (state : PatchOperation<'T>, id) = { state with Id = id }
