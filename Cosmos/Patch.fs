@@ -25,7 +25,7 @@ type PatchBuilder<'T> (enableContentResponseOnWrite : bool) =
         }
         : PatchOperation<'T>
 
-    /// Adds the <see href"PatchOp">Patch operation</see>
+    /// <summary>Adds a <see cref="PatchOperation"/></summary>
     [<CustomOperation "operation">]
     member _.Operation (state : PatchOperation<'T>, operation) = { state with Operations = operation :: state.Operations }
 
@@ -50,7 +50,7 @@ type PatchBuilder<'T> (enableContentResponseOnWrite : bool) =
         options.EnableContentResponseOnWrite <- state.RequestOptions.EnableContentResponseOnWrite
         { state with RequestOptions = options }
 
-    /// Sets the eTag to <see href="IfMatchEtag">IfMatchEtag</see>
+    /// <summary>Sets the eTag to <see cref="PatchItemRequestOptions.IfMatchEtag"/></summary>
     [<CustomOperation "eTag">]
     member _.ETag (state : PatchOperation<'T>, eTag : string) =
         state.RequestOptions.IfMatchEtag <- eTag

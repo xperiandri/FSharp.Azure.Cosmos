@@ -46,7 +46,7 @@ type ReadBuilder<'T> () =
             RequestOptions = options
     }
 
-    /// Sets the eTag to <see href="IfNotMatchEtag">IfNotMatchEtag</see>
+    /// <summary>Sets the eTag to <see cref="PatchItemRequestOptions.IfNotMatchEtag"/></summary>
     [<CustomOperation "eTag">]
     member _.ETag (state : UpsertOperation<_>, eTag : string) =
         if state.RequestOptions = Unchecked.defaultof<_> then

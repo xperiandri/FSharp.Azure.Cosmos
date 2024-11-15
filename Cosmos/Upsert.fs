@@ -53,7 +53,7 @@ type UpsertBuilder<'T> (enableContentResponseOnWrite : bool) =
         options.EnableContentResponseOnWrite <- enableContentResponseOnWrite
         { state with RequestOptions = options }
 
-    /// Sets the eTag to <see href="IfMatchEtag">IfMatchEtag</see>
+    /// <summary>Sets the eTag to <see cref="PatchItemRequestOptions.IfMatchEtag"/></summary>
     [<CustomOperation "eTag">]
     member _.ETag (state : UpsertOperation<_>, eTag : string) =
         state.RequestOptions.IfMatchEtag <- eTag
