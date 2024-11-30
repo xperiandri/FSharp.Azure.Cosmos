@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>$(AssemblyBaseName)</AssemblyName>
     <PackageId>FSharp.Azure.Cosmos</PackageId>
+    <AzureCosmosDisableNewtonsoftJsonCheck>True</AzureCosmosDisableNewtonsoftJsonCheck>
 
     <Authors>Andrii Chebukin</Authors>
     <Summary>F# API for using Microsoft Azure Cosmos DB service via Core API</Summary>
