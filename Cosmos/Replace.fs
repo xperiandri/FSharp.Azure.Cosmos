@@ -66,6 +66,58 @@ type ReplaceBuilder<'T> (enableContentResponseOnWrite : bool) =
         state.RequestOptions.IfMatchEtag <- eTag
         state
 
+    // ------------------------------------------- Request options -------------------------------------------
+    /// <summary>Sets the operation <see cref="ConsistencyLevel"/></summary>
+    [<CustomOperation "consistencyLevel">]
+    member _.ConsistencyLevel (state : CreateOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
+        state.RequestOptions.ConsistencyLevel <- consistencyLevel; state
+
+    /// Sets the indexing directive
+    [<CustomOperation "indexingDirective">]
+    member _.IndexingDirective (state : CreateOperation<_>, indexingDirective : IndexingDirective Nullable) =
+        state.RequestOptions.IndexingDirective <- indexingDirective; state
+
+    /// Adds a trigger to be invoked before the operation
+    [<CustomOperation "preTrigger">]
+    member _.PreTrigger (state : CreateOperation<_>, trigger : string) =
+        state.RequestOptions.PreTriggers <- seq {
+            yield! state.RequestOptions.PreTriggers
+            yield trigger
+        }
+        state
+
+    /// Adds triggers to be invoked before the operation
+    [<CustomOperation "preTriggers">]
+    member _.PreTriggers (state : CreateOperation<_>, triggers : seq<string>) =
+        state.RequestOptions.PreTriggers <- seq {
+            yield! state.RequestOptions.PreTriggers
+            yield! triggers
+        }
+        state
+
+    /// Adds a trigger to be invoked after the operation
+    [<CustomOperation "postTrigger">]
+    member _.PostTrigger (state : CreateOperation<_>, trigger : string) =
+        state.RequestOptions.PostTriggers <- seq {
+            yield! state.RequestOptions.PostTriggers
+            yield trigger
+        }
+        state
+
+    /// Adds triggers to be invoked after the operation
+    [<CustomOperation "postTriggers">]
+    member _.PostTriggers (state : CreateOperation<_>, triggers : seq<string>) =
+        state.RequestOptions.PostTriggers <- seq {
+            yield! state.RequestOptions.PostTriggers
+            yield! triggers
+        }
+        state
+
+    /// Sets the session token
+    [<CustomOperation "sessionToken">]
+    member _.SessionToken (state : CreateOperation<_>, sessionToken : string) =
+        state.RequestOptions.SessionToken <- sessionToken; state
+
 type ReplaceConcurrentlyBuilder<'T, 'E> (enableContentResponseOnWrite : bool) =
     member _.Yield _ =
         {
@@ -109,6 +161,58 @@ type ReplaceConcurrentlyBuilder<'T, 'E> (enableContentResponseOnWrite : bool) =
         state with
             Update = update
     }
+
+    // ------------------------------------------- Request options -------------------------------------------
+    /// <summary>Sets the operation <see cref="ConsistencyLevel"/></summary>
+    [<CustomOperation "consistencyLevel">]
+    member _.ConsistencyLevel (state : CreateOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
+        state.RequestOptions.ConsistencyLevel <- consistencyLevel; state
+
+    /// Sets the indexing directive
+    [<CustomOperation "indexingDirective">]
+    member _.IndexingDirective (state : CreateOperation<_>, indexingDirective : IndexingDirective Nullable) =
+        state.RequestOptions.IndexingDirective <- indexingDirective; state
+
+    /// Adds a trigger to be invoked before the operation
+    [<CustomOperation "preTrigger">]
+    member _.PreTrigger (state : CreateOperation<_>, trigger : string) =
+        state.RequestOptions.PreTriggers <- seq {
+            yield! state.RequestOptions.PreTriggers
+            yield trigger
+        }
+        state
+
+    /// Adds triggers to be invoked before the operation
+    [<CustomOperation "preTriggers">]
+    member _.PreTriggers (state : CreateOperation<_>, triggers : seq<string>) =
+        state.RequestOptions.PreTriggers <- seq {
+            yield! state.RequestOptions.PreTriggers
+            yield! triggers
+        }
+        state
+
+    /// Adds a trigger to be invoked after the operation
+    [<CustomOperation "postTrigger">]
+    member _.PostTrigger (state : CreateOperation<_>, trigger : string) =
+        state.RequestOptions.PostTriggers <- seq {
+            yield! state.RequestOptions.PostTriggers
+            yield trigger
+        }
+        state
+
+    /// Adds triggers to be invoked after the operation
+    [<CustomOperation "postTriggers">]
+    member _.PostTriggers (state : CreateOperation<_>, triggers : seq<string>) =
+        state.RequestOptions.PostTriggers <- seq {
+            yield! state.RequestOptions.PostTriggers
+            yield! triggers
+        }
+        state
+
+    /// Sets the session token
+    [<CustomOperation "sessionToken">]
+    member _.SessionToken (state : CreateOperation<_>, sessionToken : string) =
+        state.RequestOptions.SessionToken <- sessionToken; state
 
 let replace<'T> = ReplaceBuilder<'T> (false)
 let replaceAndRead<'T> = ReplaceBuilder<'T> (true)
