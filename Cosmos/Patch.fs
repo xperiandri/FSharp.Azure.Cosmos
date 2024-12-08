@@ -33,7 +33,7 @@ type PatchBuilder<'T> (enableContentResponseOnWrite : bool) =
     [<CustomOperation "operations">]
     member _.Operations (state : PatchOperation<'T>, operations) = { state with Operations = state.Operations @ operations }
 
-    /// Sets the item being to Patch existing with
+    /// Sets the Id of an item being patched
     [<CustomOperation "id">]
     member _.Id (state : PatchOperation<'T>, id) = { state with Id = id }
 
@@ -59,6 +59,60 @@ type PatchBuilder<'T> (enableContentResponseOnWrite : bool) =
     member _.ETag (state : PatchOperation<'T>, eTag : string) =
         state.RequestOptions.IfMatchEtag <- eTag
         state
+
+    // ------------------------------------------- Patch request options -------------------------------------------
+    /// Sets the filter predicate
+    [<CustomOperation "filterPredicate">]
+    member _.FilterPredicate (state : PatchOperation<'T>, filterPredicate : string) =
+        state.RequestOptions.FilterPredicate <- filterPredicate
+
+    // ------------------------------------------- Request options -------------------------------------------
+    /// <summary>Sets the operation <see cref="ConsistencyLevel"/></summary>
+    [<CustomOperation "consistencyLevel">]
+    member _.ConsistencyLevel (state : CreateOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
+        state.RequestOptions.ConsistencyLevel <- consistencyLevel
+
+    /// Sets the indexing directive
+    [<CustomOperation "indexingDirective">]
+    member _.IndexingDirective (state : CreateOperation<_>, indexingDirective : IndexingDirective Nullable) =
+        state.RequestOptions.IndexingDirective <- indexingDirective
+
+    /// Adds a trigger to be invoked before the operation
+    [<CustomOperation "preTrigger">]
+    member _.PreTrigger (state : CreateOperation<_>, trigger : string) =
+        state.RequestOptions.PreTriggers <- seq {
+            yield! state.RequestOptions.PreTriggers
+            yield trigger
+        }
+
+    /// Adds triggers to be invoked before the operation
+    [<CustomOperation "preTriggers">]
+    member _.PreTriggers (state : CreateOperation<_>, triggers : seq<string>) =
+        state.RequestOptions.PreTriggers <- seq {
+            yield! state.RequestOptions.PreTriggers
+            yield! triggers
+        }
+
+    /// Adds a trigger to be invoked after the operation
+    [<CustomOperation "postTrigger">]
+    member _.PostTrigger (state : CreateOperation<_>, trigger : string) =
+        state.RequestOptions.PostTriggers <- seq {
+            yield! state.RequestOptions.PostTriggers
+            yield trigger
+        }
+
+    /// Adds triggers to be invoked after the operation
+    [<CustomOperation "postTriggers">]
+    member _.PostTriggers (state : CreateOperation<_>, triggers : seq<string>) =
+        state.RequestOptions.PostTriggers <- seq {
+            yield! state.RequestOptions.PostTriggers
+            yield! triggers
+        }
+
+    /// Sets the session token
+    [<CustomOperation "sessionToken">]
+    member _.SessionToken (state : CreateOperation<_>, sessionToken : string) =
+        state.RequestOptions.SessionToken <- sessionToken
 
 let patch<'T> = PatchBuilder<'T> (false)
 let patchWithContentResponse<'T> = PatchBuilder<'T> (true)
