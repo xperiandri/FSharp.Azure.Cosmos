@@ -32,7 +32,7 @@ module Operations =
         | HttpStatusCode.TooManyRequests -> true
         | _ -> false
 
-    let internal toCosmosException (ex : Exception) =
+    let internal unwrapCosmosException (ex : Exception) =
         match ex with
         | :? CosmosException as ex -> Some ex
         | :? AggregateException as ex ->
@@ -42,12 +42,12 @@ module Operations =
         | _ -> None
 
     let internal handleException (ex : Exception) =
-        let cosmosException = toCosmosException ex
+        let cosmosException = unwrapCosmosException ex
         match cosmosException with
         | Some ex when canHandleStatusCode ex.StatusCode -> Some ex
         | _ -> None
 
-    let (|CosmosException|_|) (ex : Exception) = toCosmosException ex
+    let (|CosmosException|_|) (ex : Exception) = unwrapCosmosException ex
 
     let (|HandleException|_|) (ex : Exception) = handleException ex
 

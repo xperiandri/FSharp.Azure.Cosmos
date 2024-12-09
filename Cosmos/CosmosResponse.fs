@@ -12,6 +12,7 @@ type CosmosResponse<'T> = {
     Headers : Headers
     Result : 'T
     Diagnostics : CosmosDiagnostics
+    Exception : Exception voption
 } with
 
     member this.RequestCharge =
@@ -34,6 +35,7 @@ module CosmosResponse =
         Headers = response.Headers
         Result = successFn response.Resource
         Diagnostics = response.Diagnostics
+        Exception = ValueNone
     }
 
     let fromFeedResponse (successFn : 'T seq -> 'Result) (response : FeedResponse<'T>) = {
@@ -41,6 +43,7 @@ module CosmosResponse =
         Headers = response.Headers
         Result = successFn response
         Diagnostics = response.Diagnostics
+        Exception = ValueNone
     }
 
     let fromException resultFn (ex : CosmosException) = {
@@ -48,8 +51,7 @@ module CosmosResponse =
         Headers = ex.Headers
         Result = resultFn ex
         Diagnostics = ex.Diagnostics
+        Exception = ValueSome ex
     }
 
-    let toException<'T> (response : CosmosResponse<'T>) =
-        let ex = new CosmosException ("", response.HttpStatusCode, 0, "", response.Diagnostics.GetQueryMetrics().TotalRequestCharge)
-        ex
+    let toException<'T> (response : CosmosResponse<'T>) = response.Exception.Value
