@@ -66,8 +66,41 @@ module Operations =
             o.MaxItemCount <- 1
             o
 
+    type ItemRequestOptions with
+
+        member options.AddPreTrigger (trigger : string) =
+            options.PreTriggers <- seq {
+                if not <| isNull options.PreTriggers then
+                    yield! options.PreTriggers
+                yield trigger
+            }
+
+        member options.AddPreTriggers (triggers : string seq) =
+            if isNull triggers then
+                raise (ArgumentNullException (nameof triggers))
+            options.PreTriggers <- seq {
+                if not <| isNull options.PreTriggers then
+                    yield! options.PreTriggers
+                yield! triggers
+            }
+
+        member options.AddPostTrigger (trigger : string) =
+            options.PostTriggers <- seq {
+                if not <| isNull options.PostTriggers then
+                    yield! options.PostTriggers
+                yield trigger
+            }
+
+        member options.AddPostTriggers (triggers : string seq) =
+            if isNull triggers then
+                raise (ArgumentNullException (nameof triggers))
+            options.PostTriggers <- seq {
+                yield! options.PostTriggers
+                yield! triggers
+            }
+
     let internal countQuery = QueryDefinition ("SELECT VALUE COUNT(1)")
-    let internal existsQuery = QueryDefinition("SELECT VALUE COUNT(1) FROM item WHERE item.id = @Id")
+    let internal existsQuery = QueryDefinition ("SELECT VALUE COUNT(1) FROM item WHERE item.id = @Id")
     let internal getExistsQuery id = existsQuery.WithParameter ("@Id", id)
 
     type Microsoft.Azure.Cosmos.Container with
@@ -113,7 +146,9 @@ module Operations =
         /// </summary>
         /// <param name="requestOptions">Request options</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        member container.LongCountAsync (requestOptions : QueryRequestOptions, [<Optional>] cancellationToken : CancellationToken) =
+        member container.LongCountAsync
+            (requestOptions : QueryRequestOptions, [<Optional>] cancellationToken : CancellationToken)
+            =
             container.GetItemQueryIterator<int64> (countQuery, requestOptions = getRequestOptionsWithMaxItemCount1 requestOptions)
             |> TaskSeq.ofFeedIteratorWithCancellation cancellationToken
             |> TaskSeq.tryHead
@@ -169,7 +204,9 @@ module Operations =
         /// <param name="id">Item Id</param>
         /// <param name="partitionKey">Partition key</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        member container.ExistsAsync (id : string, partitionKey : PartitionKey, [<Optional>] cancellationToken : CancellationToken) =
+        member container.ExistsAsync
+            (id : string, partitionKey : PartitionKey, [<Optional>] cancellationToken : CancellationToken)
+            =
             container.ExistsAsync (id, QueryRequestOptions (PartitionKey = partitionKey), cancellationToken)
 
         /// <summary>

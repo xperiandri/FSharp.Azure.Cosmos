@@ -58,38 +58,22 @@ type CreateBuilder<'T> (enableContentResponseOnWrite : bool) =
     /// Adds a trigger to be invoked before the operation
     [<CustomOperation "preTrigger">]
     member _.PreTrigger (state : CreateOperation<_>, trigger : string) =
-        state.RequestOptions.PreTriggers <- seq {
-            yield! state.RequestOptions.PreTriggers
-            yield trigger
-        }
-        state
+        state.RequestOptions.AddPreTrigger trigger; state
 
     /// Adds triggers to be invoked before the operation
     [<CustomOperation "preTriggers">]
     member _.PreTriggers (state : CreateOperation<_>, triggers : seq<string>) =
-        state.RequestOptions.PreTriggers <- seq {
-            yield! state.RequestOptions.PreTriggers
-            yield! triggers
-        }
-        state
+        state.RequestOptions.AddPreTriggers triggers; state
 
     /// Adds a trigger to be invoked after the operation
     [<CustomOperation "postTrigger">]
     member _.PostTrigger (state : CreateOperation<_>, trigger : string) =
-        state.RequestOptions.PostTriggers <- seq {
-            yield! state.RequestOptions.PostTriggers
-            yield trigger
-        }
-        state
+        state.RequestOptions.AddPostTrigger trigger; state
 
     /// Adds triggers to be invoked after the operation
     [<CustomOperation "postTriggers">]
     member _.PostTriggers (state : CreateOperation<_>, triggers : seq<string>) =
-        state.RequestOptions.PostTriggers <- seq {
-            yield! state.RequestOptions.PostTriggers
-            yield! triggers
-        }
-        state
+        state.RequestOptions.AddPostTriggers triggers; state
 
     /// Sets the session token
     [<CustomOperation "sessionToken">]
