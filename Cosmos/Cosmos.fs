@@ -69,35 +69,35 @@ module Operations =
     type ItemRequestOptions with
 
         member options.AddPreTrigger (trigger : string) =
-            options.PreTriggers <- seq {
+            options.PreTriggers <- [|
                 if not <| isNull options.PreTriggers then
                     yield! options.PreTriggers
                 yield trigger
-            }
+            |]
 
         member options.AddPreTriggers (triggers : string seq) =
             if isNull triggers then
                 raise (ArgumentNullException (nameof triggers))
-            options.PreTriggers <- seq {
+            options.PreTriggers <- [|
                 if not <| isNull options.PreTriggers then
                     yield! options.PreTriggers
                 yield! triggers
-            }
+            |]
 
         member options.AddPostTrigger (trigger : string) =
-            options.PostTriggers <- seq {
+            options.PostTriggers <- [|
                 if not <| isNull options.PostTriggers then
                     yield! options.PostTriggers
                 yield trigger
-            }
+            |]
 
         member options.AddPostTriggers (triggers : string seq) =
             if isNull triggers then
                 raise (ArgumentNullException (nameof triggers))
-            options.PostTriggers <- seq {
+            options.PostTriggers <- [|
                 yield! options.PostTriggers
                 yield! triggers
-            }
+            |]
 
     let internal countQuery = QueryDefinition ("SELECT VALUE COUNT(1)")
     let internal existsQuery = QueryDefinition ("SELECT VALUE COUNT(1) FROM item WHERE item.id = @Id")
