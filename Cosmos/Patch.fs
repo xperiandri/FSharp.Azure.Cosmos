@@ -71,6 +71,11 @@ type PatchBuilder<'T> (enableContentResponseOnWrite : bool) =
     member _.ConsistencyLevel (state : CreateOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
         state.RequestOptions.ConsistencyLevel <- consistencyLevel; state
 
+    /// Sets if the response should include the content of the item after the operation
+    [<CustomOperation "enableContentResponseOnWrite">]
+    member _.EnableContentResponseOnWrite (state : CreateOperation<_>, enableContentResponseOnWrite : bool) =
+        state.RequestOptions.EnableContentResponseOnWrite <- enableContentResponseOnWrite; state
+
     /// Sets the indexing directive
     [<CustomOperation "indexingDirective">]
     member _.IndexingDirective (state : CreateOperation<_>, indexingDirective : IndexingDirective Nullable) =
@@ -109,7 +114,6 @@ let patchWithContentResponse<'T> = PatchBuilder<'T> (true)
 /// Represents the result of a patch operation.
 type PatchResult<'t> =
     | Ok of 't // 200
-    | NotExecuted
     | BadRequest of ResponseBody : string // 400
     | NotFound of ResponseBody : string // 404
     /// Precondition failed

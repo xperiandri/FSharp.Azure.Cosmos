@@ -64,6 +64,11 @@ type UpsertBuilder<'T> (enableContentResponseOnWrite : bool) =
     member _.ConsistencyLevel (state : CreateOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
         state.RequestOptions.ConsistencyLevel <- consistencyLevel; state
 
+    /// Sets if the response should include the content of the item after the operation
+    [<CustomOperation "enableContentResponseOnWrite">]
+    member _.EnableContentResponseOnWrite (state : CreateOperation<_>, enableContentResponseOnWrite : bool) =
+        state.RequestOptions.EnableContentResponseOnWrite <- enableContentResponseOnWrite; state
+
     /// Sets the indexing directive
     [<CustomOperation "indexingDirective">]
     member _.IndexingDirective (state : CreateOperation<_>, indexingDirective : IndexingDirective Nullable) =
@@ -144,6 +149,11 @@ type UpsertConcurrentlyBuilder<'T, 'E> (enableContentResponseOnWrite : bool) =
     [<CustomOperation "consistencyLevel">]
     member _.ConsistencyLevel (state : CreateOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
         state.RequestOptions.ConsistencyLevel <- consistencyLevel; state
+
+    /// Sets if the response should include the content of the item after the operation
+    [<CustomOperation "enableContentResponseOnWrite">]
+    member _.EnableContentResponseOnWrite (state : CreateOperation<_>, enableContentResponseOnWrite : bool) =
+        state.RequestOptions.EnableContentResponseOnWrite <- enableContentResponseOnWrite; state
 
     /// Sets the indexing directive
     [<CustomOperation "indexingDirective">]
