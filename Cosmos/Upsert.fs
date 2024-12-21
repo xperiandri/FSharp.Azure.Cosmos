@@ -53,7 +53,7 @@ type UpsertBuilder<'T> (enableContentResponseOnWrite : bool) =
         options.EnableContentResponseOnWrite <- enableContentResponseOnWrite
         { state with RequestOptions = options }
 
-    /// <summary>Sets the eTag to <see cref="PatchItemRequestOptions.IfMatchEtag"/></summary>
+    /// <summary>Sets the eTag to <see cref="ItemRequestOptions.IfMatchEtag"/></summary>
     [<CustomOperation "eTag">]
     member _.ETag (state : UpsertOperation<_>, eTag : string) =
         state.RequestOptions.IfMatchEtag <- eTag; state
@@ -61,42 +61,42 @@ type UpsertBuilder<'T> (enableContentResponseOnWrite : bool) =
     // ------------------------------------------- Request options -------------------------------------------
     /// <summary>Sets the operation <see cref="ConsistencyLevel"/></summary>
     [<CustomOperation "consistencyLevel">]
-    member _.ConsistencyLevel (state : CreateOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
+    member _.ConsistencyLevel (state : UpsertOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
         state.RequestOptions.ConsistencyLevel <- consistencyLevel; state
 
     /// Sets if the response should include the content of the item after the operation
     [<CustomOperation "enableContentResponseOnWrite">]
-    member _.EnableContentResponseOnWrite (state : CreateOperation<_>, enableContentResponseOnWrite : bool) =
+    member _.EnableContentResponseOnWrite (state : UpsertOperation<_>, enableContentResponseOnWrite : bool) =
         state.RequestOptions.EnableContentResponseOnWrite <- enableContentResponseOnWrite; state
 
     /// Sets the indexing directive
     [<CustomOperation "indexingDirective">]
-    member _.IndexingDirective (state : CreateOperation<_>, indexingDirective : IndexingDirective Nullable) =
+    member _.IndexingDirective (state : UpsertOperation<_>, indexingDirective : IndexingDirective Nullable) =
         state.RequestOptions.IndexingDirective <- indexingDirective; state
 
     /// Adds a trigger to be invoked before the operation
     [<CustomOperation "preTrigger">]
-    member _.PreTrigger (state : CreateOperation<_>, trigger : string) =
+    member _.PreTrigger (state : UpsertOperation<_>, trigger : string) =
         state.RequestOptions.AddPreTrigger trigger; state
 
     /// Adds triggers to be invoked before the operation
     [<CustomOperation "preTriggers">]
-    member _.PreTriggers (state : CreateOperation<_>, triggers : seq<string>) =
+    member _.PreTriggers (state : UpsertOperation<_>, triggers : seq<string>) =
         state.RequestOptions.AddPreTriggers triggers; state
 
     /// Adds a trigger to be invoked after the operation
     [<CustomOperation "postTrigger">]
-    member _.PostTrigger (state : CreateOperation<_>, trigger : string) =
+    member _.PostTrigger (state : UpsertOperation<_>, trigger : string) =
         state.RequestOptions.AddPostTrigger trigger; state
 
     /// Adds triggers to be invoked after the operation
     [<CustomOperation "postTriggers">]
-    member _.PostTriggers (state : CreateOperation<_>, triggers : seq<string>) =
+    member _.PostTriggers (state : UpsertOperation<_>, triggers : seq<string>) =
         state.RequestOptions.AddPostTriggers triggers; state
 
     /// Sets the session token
     [<CustomOperation "sessionToken">]
-    member _.SessionToken (state : CreateOperation<_>, sessionToken : string) =
+    member _.SessionToken (state : UpsertOperation<_>, sessionToken : string) =
         state.RequestOptions.SessionToken <- sessionToken; state
 
 type UpsertConcurrentlyBuilder<'T, 'E> (enableContentResponseOnWrite : bool) =
@@ -147,42 +147,42 @@ type UpsertConcurrentlyBuilder<'T, 'E> (enableContentResponseOnWrite : bool) =
     // ------------------------------------------- Request options -------------------------------------------
     /// <summary>Sets the operation <see cref="ConsistencyLevel"/></summary>
     [<CustomOperation "consistencyLevel">]
-    member _.ConsistencyLevel (state : CreateOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
+    member _.ConsistencyLevel (state : UpsertConcurrentlyOperation<_, _>, consistencyLevel : ConsistencyLevel Nullable) =
         state.RequestOptions.ConsistencyLevel <- consistencyLevel; state
 
     /// Sets if the response should include the content of the item after the operation
     [<CustomOperation "enableContentResponseOnWrite">]
-    member _.EnableContentResponseOnWrite (state : CreateOperation<_>, enableContentResponseOnWrite : bool) =
+    member _.EnableContentResponseOnWrite (state : UpsertConcurrentlyOperation<_, _>, enableContentResponseOnWrite : bool) =
         state.RequestOptions.EnableContentResponseOnWrite <- enableContentResponseOnWrite; state
 
     /// Sets the indexing directive
     [<CustomOperation "indexingDirective">]
-    member _.IndexingDirective (state : CreateOperation<_>, indexingDirective : IndexingDirective Nullable) =
+    member _.IndexingDirective (state : UpsertConcurrentlyOperation<_, _>, indexingDirective : IndexingDirective Nullable) =
         state.RequestOptions.IndexingDirective <- indexingDirective; state
 
     /// Adds a trigger to be invoked before the operation
     [<CustomOperation "preTrigger">]
-    member _.PreTrigger (state : CreateOperation<_>, trigger : string) =
+    member _.PreTrigger (state : UpsertConcurrentlyOperation<_, _>, trigger : string) =
         state.RequestOptions.AddPreTrigger trigger; state
 
     /// Adds triggers to be invoked before the operation
     [<CustomOperation "preTriggers">]
-    member _.PreTriggers (state : CreateOperation<_>, triggers : seq<string>) =
+    member _.PreTriggers (state : UpsertConcurrentlyOperation<_, _>, triggers : seq<string>) =
         state.RequestOptions.AddPreTriggers triggers; state
 
     /// Adds a trigger to be invoked after the operation
     [<CustomOperation "postTrigger">]
-    member _.PostTrigger (state : CreateOperation<_>, trigger : string) =
+    member _.PostTrigger (state : UpsertConcurrentlyOperation<_, _>, trigger : string) =
         state.RequestOptions.AddPostTrigger trigger; state
 
     /// Adds triggers to be invoked after the operation
     [<CustomOperation "postTriggers">]
-    member _.PostTriggers (state : CreateOperation<_>, triggers : seq<string>) =
+    member _.PostTriggers (state : UpsertConcurrentlyOperation<_, _>, triggers : seq<string>) =
         state.RequestOptions.AddPostTriggers triggers; state
 
     /// Sets the session token
     [<CustomOperation "sessionToken">]
-    member _.SessionToken (state : CreateOperation<_>, sessionToken : string) =
+    member _.SessionToken (state : UpsertConcurrentlyOperation<_, _>, sessionToken : string) =
         state.RequestOptions.SessionToken <- sessionToken; state
 
 let upsert<'T> = UpsertBuilder<'T> (false)

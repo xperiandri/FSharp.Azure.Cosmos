@@ -21,16 +21,13 @@ type ReadBuilder<'T> () =
         }
         : ReadOperation<'T>
 
-    /// Sets the item being creeated
+    /// Sets the item being created
     [<CustomOperation "id">]
     member _.Id (state : ReadOperation<_>, id) = { state with Id = id }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
-    member _.PartitionKey (state : ReadOperation<_>, partitionKey : PartitionKey) = {
-        state with
-            PartitionKey = partitionKey
-    }
+    member _.PartitionKey (state : ReadOperation<_>, partitionKey : PartitionKey) = { state with PartitionKey = partitionKey }
 
     /// Sets the partition key
     [<CustomOperation "partitionKey">]
@@ -41,14 +38,11 @@ type ReadBuilder<'T> () =
 
     /// Sets the request options
     [<CustomOperation "requestOptions">]
-    member _.RequestOptions (state : ReadOperation<_>, options : ItemRequestOptions) = {
-        state with
-            RequestOptions = options
-    }
+    member _.RequestOptions (state : ReadOperation<_>, options : ItemRequestOptions) = { state with RequestOptions = options }
 
-    /// <summary>Sets the eTag to <see cref="PatchItemRequestOptions.IfNotMatchEtag"/></summary>
+    /// <summary>Sets the eTag to <see cref="ItemRequestOptions.IfNotMatchEtag"/></summary>
     [<CustomOperation "eTag">]
-    member _.ETag (state : UpsertOperation<_>, eTag : string) =
+    member _.ETag (state : ReadOperation<_>, eTag : string) =
         if state.RequestOptions = Unchecked.defaultof<_> then
             let options = ItemRequestOptions (IfNoneMatchEtag = eTag)
 
@@ -60,37 +54,17 @@ type ReadBuilder<'T> () =
     // ------------------------------------------- Request options -------------------------------------------
     /// <summary>Sets the operation <see cref="ConsistencyLevel"/></summary>
     [<CustomOperation "consistencyLevel">]
-    member _.ConsistencyLevel (state : CreateOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
+    member _.ConsistencyLevel (state : ReadOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
         state.RequestOptions.ConsistencyLevel <- consistencyLevel; state
 
     /// Sets the indexing directive
     [<CustomOperation "indexingDirective">]
-    member _.IndexingDirective (state : CreateOperation<_>, indexingDirective : IndexingDirective Nullable) =
+    member _.IndexingDirective (state : ReadOperation<_>, indexingDirective : IndexingDirective Nullable) =
         state.RequestOptions.IndexingDirective <- indexingDirective; state
-
-    /// Adds a trigger to be invoked before the operation
-    [<CustomOperation "preTrigger">]
-    member _.PreTrigger (state : CreateOperation<_>, trigger : string) =
-        state.RequestOptions.AddPreTrigger trigger; state
-
-    /// Adds triggers to be invoked before the operation
-    [<CustomOperation "preTriggers">]
-    member _.PreTriggers (state : CreateOperation<_>, triggers : seq<string>) =
-        state.RequestOptions.AddPreTriggers triggers; state
-
-    /// Adds a trigger to be invoked after the operation
-    [<CustomOperation "postTrigger">]
-    member _.PostTrigger (state : CreateOperation<_>, trigger : string) =
-        state.RequestOptions.AddPostTrigger trigger; state
-
-    /// Adds triggers to be invoked after the operation
-    [<CustomOperation "postTriggers">]
-    member _.PostTriggers (state : CreateOperation<_>, triggers : seq<string>) =
-        state.RequestOptions.AddPostTriggers triggers; state
 
     /// Sets the session token
     [<CustomOperation "sessionToken">]
-    member _.SessionToken (state : CreateOperation<_>, sessionToken : string) =
+    member _.SessionToken (state : ReadOperation<_>, sessionToken : string) =
         state.RequestOptions.SessionToken <- sessionToken; state
 
 let read<'T> = ReadBuilder<'T> ()
@@ -140,7 +114,8 @@ type Microsoft.Azure.Cosmos.Container with
     /// <param name="cancellationToken">Cancellation token</param>
     member container.ExecuteAsync<'T, 'Result>
         (operation : ReadOperation<'T>, success, failure, [<Optional>] cancellationToken : CancellationToken)
-        : Task<CosmosResponse<'Result>> =
+        : Task<CosmosResponse<'Result>>
+        =
         task {
             try
                 let! result = container.PlainExecuteAsync (operation, cancellationToken)
@@ -156,12 +131,17 @@ type Microsoft.Azure.Cosmos.Container with
     /// <param name="cancellationToken">Cancellation token</param>
     member container.ExecuteAsync<'T> (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
         let successFn result : ReadResult<'T> =
-            if Object.Equals(result, Unchecked.defaultof<'T>) then
+            if Object.Equals (result, Unchecked.defaultof<'T>) then
                 ReadResult.NotModified
             else
                 ReadResult.Ok result
 
-        container.ExecuteAsync<'T, ReadResult<'T>> (operation, successFn, toReadResult ReadResult.IncompatibleConsistencyLevel ReadResult.NotFound, cancellationToken)
+        container.ExecuteAsync<'T, ReadResult<'T>> (
+            operation,
+            successFn,
+            toReadResult ReadResult.IncompatibleConsistencyLevel ReadResult.NotFound,
+            cancellationToken
+        )
 
     /// <summary>
     /// Executes a read operation and returns <see cref="CosmosResponse{FSharpValueOption{T}}"/>.
@@ -169,15 +149,27 @@ type Microsoft.Azure.Cosmos.Container with
     /// <param name="operation">Read operation</param>
     /// <param name="cancellationToken">Cancellation token</param>
     member container.ExecuteAsyncOption<'T> (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
-        container.ExecuteAsync<'T, 'T option> (operation, Some, toReadResult (fun message -> raise (invalidOp message)) (fun _ -> None), cancellationToken)
+        container.ExecuteAsync<'T, 'T option> (
+            operation,
+            Some,
+            toReadResult (fun message -> raise (invalidOp message)) (fun _ -> None),
+            cancellationToken
+        )
 
     /// <summary>
     /// Executes a read operation and returns <see cref="CosmosResponse{FSharpOption{T}}"/>.
     /// </summary>
     /// <param name="operation">Read operation</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    member container.ExecuteAsyncValueOption<'T> (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken) =
-        container.ExecuteAsync<'T, 'T voption> (operation, ValueSome, toReadResult (fun message -> raise (invalidOp message)) (fun _ -> ValueNone), cancellationToken)
+    member container.ExecuteAsyncValueOption<'T>
+        (operation : ReadOperation<'T>, [<Optional>] cancellationToken : CancellationToken)
+        =
+        container.ExecuteAsync<'T, 'T voption> (
+            operation,
+            ValueSome,
+            toReadResult (fun message -> raise (invalidOp message)) (fun _ -> ValueNone),
+            cancellationToken
+        )
 
 open System.Runtime.CompilerServices
 

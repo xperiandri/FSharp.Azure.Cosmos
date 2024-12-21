@@ -68,42 +68,42 @@ type PatchBuilder<'T> (enableContentResponseOnWrite : bool) =
     // ------------------------------------------- Request options -------------------------------------------
     /// <summary>Sets the operation <see cref="ConsistencyLevel"/></summary>
     [<CustomOperation "consistencyLevel">]
-    member _.ConsistencyLevel (state : CreateOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
+    member _.ConsistencyLevel (state : PatchOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
         state.RequestOptions.ConsistencyLevel <- consistencyLevel; state
 
     /// Sets if the response should include the content of the item after the operation
     [<CustomOperation "enableContentResponseOnWrite">]
-    member _.EnableContentResponseOnWrite (state : CreateOperation<_>, enableContentResponseOnWrite : bool) =
+    member _.EnableContentResponseOnWrite (state : PatchOperation<_>, enableContentResponseOnWrite : bool) =
         state.RequestOptions.EnableContentResponseOnWrite <- enableContentResponseOnWrite; state
 
     /// Sets the indexing directive
     [<CustomOperation "indexingDirective">]
-    member _.IndexingDirective (state : CreateOperation<_>, indexingDirective : IndexingDirective Nullable) =
+    member _.IndexingDirective (state : PatchOperation<_>, indexingDirective : IndexingDirective Nullable) =
         state.RequestOptions.IndexingDirective <- indexingDirective; state
 
     /// Adds a trigger to be invoked before the operation
     [<CustomOperation "preTrigger">]
-    member _.PreTrigger (state : CreateOperation<_>, trigger : string) =
+    member _.PreTrigger (state : PatchOperation<_>, trigger : string) =
         state.RequestOptions.AddPreTrigger trigger; state
 
     /// Adds triggers to be invoked before the operation
     [<CustomOperation "preTriggers">]
-    member _.PreTriggers (state : CreateOperation<_>, triggers : seq<string>) =
+    member _.PreTriggers (state : PatchOperation<_>, triggers : seq<string>) =
         state.RequestOptions.AddPreTriggers triggers; state
 
     /// Adds a trigger to be invoked after the operation
     [<CustomOperation "postTrigger">]
-    member _.PostTrigger (state : CreateOperation<_>, trigger : string) =
+    member _.PostTrigger (state : PatchOperation<_>, trigger : string) =
         state.RequestOptions.AddPostTrigger trigger; state
 
     /// Adds triggers to be invoked after the operation
     [<CustomOperation "postTriggers">]
-    member _.PostTriggers (state : CreateOperation<_>, triggers : seq<string>) =
+    member _.PostTriggers (state : PatchOperation<_>, triggers : seq<string>) =
         state.RequestOptions.AddPostTriggers triggers; state
 
     /// Sets the session token
     [<CustomOperation "sessionToken">]
-    member _.SessionToken (state : CreateOperation<_>, sessionToken : string) =
+    member _.SessionToken (state : PatchOperation<_>, sessionToken : string) =
         state.RequestOptions.SessionToken <- sessionToken; state
 
 let patch<'T> = PatchBuilder<'T> (false)

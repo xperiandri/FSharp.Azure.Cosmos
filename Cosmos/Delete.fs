@@ -13,6 +13,7 @@ type DeleteOperation = {
 open System
 
 type DeleteBuilder () =
+
     member _.Yield _ =
         {
             Id = String.Empty
@@ -46,7 +47,7 @@ type DeleteBuilder () =
             RequestOptions = ValueSome options
     }
 
-    /// <summary>Sets the eTag to <see cref="PatchItemRequestOptions.IfNotMatchEtag"/></summary>
+    /// <summary>Sets the eTag to <see cref="ItemRequestOptions.IfNotMatchEtag"/></summary>
     [<CustomOperation "eTag">]
     member _.ETag (state : DeleteOperation, eTag : string) =
         match state.RequestOptions with
@@ -60,43 +61,95 @@ type DeleteBuilder () =
     // ------------------------------------------- Request options -------------------------------------------
     /// <summary>Sets the operation <see cref="ConsistencyLevel"/></summary>
     [<CustomOperation "consistencyLevel">]
-    member _.ConsistencyLevel (state : CreateOperation<_>, consistencyLevel : ConsistencyLevel Nullable) =
-        state.RequestOptions.ConsistencyLevel <- consistencyLevel; state
+    member _.ConsistencyLevel (state : DeleteOperation, consistencyLevel : ConsistencyLevel Nullable) =
+        match state.RequestOptions with
+        | ValueSome requestOptions ->
+            requestOptions.ConsistencyLevel <- consistencyLevel
+            state
+        | ValueNone ->
+            let options = ItemRequestOptions (ConsistencyLevel = consistencyLevel)
+            { state with RequestOptions = ValueSome options }
 
     /// Sets if the response should include the content of the item after the operation
     [<CustomOperation "enableContentResponseOnWrite">]
-    member _.EnableContentResponseOnWrite (state : CreateOperation<_>, enableContentResponseOnWrite : bool) =
-        state.RequestOptions.EnableContentResponseOnWrite <- enableContentResponseOnWrite; state
+    member _.EnableContentResponseOnWrite (state : DeleteOperation, enableContentResponseOnWrite : bool) =
+        match state.RequestOptions with
+        | ValueSome requestOptions ->
+            requestOptions.EnableContentResponseOnWrite <- enableContentResponseOnWrite
+            state
+        | ValueNone ->
+            let options = ItemRequestOptions (EnableContentResponseOnWrite = enableContentResponseOnWrite)
+            { state with RequestOptions = ValueSome options }
 
     /// Sets the indexing directive
     [<CustomOperation "indexingDirective">]
-    member _.IndexingDirective (state : CreateOperation<_>, indexingDirective : IndexingDirective Nullable) =
-        state.RequestOptions.IndexingDirective <- indexingDirective; state
+    member _.IndexingDirective (state : DeleteOperation, indexingDirective : IndexingDirective Nullable) =
+        match state.RequestOptions with
+        | ValueSome requestOptions ->
+            requestOptions.IndexingDirective <- indexingDirective
+            state
+        | ValueNone ->
+            let options = ItemRequestOptions (IndexingDirective = indexingDirective)
+            { state with RequestOptions = ValueSome options }
 
     /// Adds a trigger to be invoked before the operation
     [<CustomOperation "preTrigger">]
-    member _.PreTrigger (state : CreateOperation<_>, trigger : string) =
-        state.RequestOptions.AddPreTrigger trigger; state
+    member _.PreTrigger (state : DeleteOperation, trigger : string) =
+        match state.RequestOptions with
+        | ValueSome requestOptions ->
+            requestOptions.AddPreTrigger trigger
+            state
+        | ValueNone ->
+            let options = ItemRequestOptions ()
+            options.AddPreTrigger trigger
+            { state with RequestOptions = ValueSome options }
 
     /// Adds triggers to be invoked before the operation
     [<CustomOperation "preTriggers">]
-    member _.PreTriggers (state : CreateOperation<_>, triggers : seq<string>) =
-        state.RequestOptions.AddPreTriggers triggers; state
+    member _.PreTriggers (state : DeleteOperation, triggers : seq<string>) =
+        match state.RequestOptions with
+        | ValueSome requestOptions ->
+            requestOptions.AddPreTriggers triggers
+            state
+        | ValueNone ->
+            let options = ItemRequestOptions ()
+            options.AddPreTriggers triggers
+            { state with RequestOptions = ValueSome options }
 
     /// Adds a trigger to be invoked after the operation
     [<CustomOperation "postTrigger">]
-    member _.PostTrigger (state : CreateOperation<_>, trigger : string) =
-        state.RequestOptions.AddPostTrigger trigger; state
+    member _.PostTrigger (state : DeleteOperation, trigger : string) =
+        match state.RequestOptions with
+        | ValueSome requestOptions ->
+            requestOptions.AddPostTrigger trigger
+            state
+        | ValueNone ->
+            let options = ItemRequestOptions ()
+            options.AddPostTrigger trigger
+            { state with RequestOptions = ValueSome options }
 
     /// Adds triggers to be invoked after the operation
     [<CustomOperation "postTriggers">]
-    member _.PostTriggers (state : CreateOperation<_>, triggers : seq<string>) =
-        state.RequestOptions.AddPostTriggers triggers; state
+    member _.PostTriggers (state : DeleteOperation, triggers : seq<string>) =
+        match state.RequestOptions with
+        | ValueSome requestOptions ->
+            requestOptions.AddPostTriggers triggers
+            state
+        | ValueNone ->
+            let options = ItemRequestOptions ()
+            options.AddPostTriggers triggers
+            { state with RequestOptions = ValueSome options }
 
     /// Sets the session token
     [<CustomOperation "sessionToken">]
-    member _.SessionToken (state : CreateOperation<_>, sessionToken : string) =
-        state.RequestOptions.SessionToken <- sessionToken; state
+    member _.SessionToken (state : DeleteOperation, sessionToken : string) =
+        match state.RequestOptions with
+        | ValueSome requestOptions ->
+            requestOptions.SessionToken <- sessionToken
+            state
+        | ValueNone ->
+            let options = ItemRequestOptions (SessionToken = sessionToken)
+            { state with RequestOptions = ValueSome options }
 
 let delete = DeleteBuilder ()
 
