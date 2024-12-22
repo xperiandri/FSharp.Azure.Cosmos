@@ -46,6 +46,7 @@
     <Compile Include="Patch.fs" />
     <Compile Include="Delete.fs" />
     <Compile Include="Read.fs" />
+    <Compile Include="ReadMany.fs" />
     <Compile Include="UniqueKey.fs" />
   </ItemGroup>
 
