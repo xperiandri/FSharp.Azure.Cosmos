@@ -107,7 +107,7 @@ type PatchBuilder<'T> (enableContentResponseOnWrite : bool) =
         state.RequestOptions.SessionToken <- sessionToken; state
 
 let patch<'T> = PatchBuilder<'T> (false)
-let patchWithContentResponse<'T> = PatchBuilder<'T> (true)
+let patchAndRead<'T> = PatchBuilder<'T> (true)
 
 // https://docs.microsoft.com/en-us/rest/api/cosmos-db/http-status-codes-for-cosmosdb
 

@@ -37,6 +37,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="FeedIterator.fs" />
+    <Compile Include="Queryable.fs" />
     <Compile Include="TaskSeq.fs" />
     <Compile Include="CosmosResponse.fs" />
     <Compile Include="Cosmos.fs" />
