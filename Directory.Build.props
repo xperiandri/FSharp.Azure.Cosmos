@@ -1,7 +1,8 @@
 <Project>
   <PropertyGroup>
     <AssemblyBaseName>FSharp.Azure.Cosmos</AssemblyBaseName>
-    <LangVersion>8.0</LangVersion>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>Enable</Nullable>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
