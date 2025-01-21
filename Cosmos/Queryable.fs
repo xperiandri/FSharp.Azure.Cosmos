@@ -1,4 +1,5 @@
-﻿namespace Microsoft.Azure.Cosmos
+﻿[<AutoOpen>]
+module Microsoft.Azure.Cosmos.QuerableExtensions
 
 open System.Linq
 open System.Runtime.CompilerServices
@@ -7,17 +8,13 @@ open System.Threading
 open Microsoft.Azure.Cosmos
 open Microsoft.Azure.Cosmos.Linq
 
-[<AbstractClass; Sealed; Extension>]
-type QuerableExtensions private () =
+type IQueryable<'T> with
 
-    [<Extension; CompiledName "AsAsyncEnumerable">]
-    static member inline AsAsyncEnumerable<'T> (query : IQueryable<'T>, [<Optional; EnumeratorCancellation>] cancellationToken : CancellationToken) =
+    member inline query.AsAsyncEnumerable<'T> ([<Optional; EnumeratorCancellation>] cancellationToken : CancellationToken) =
         query.ToFeedIterator().AsAsyncEnumerable<'T> (cancellationToken)
 
-    [<Extension; CompiledName "AsContinuableAsyncEnumerable">]
-    static member inline AsContinuableAsyncEnumerable<'T> (query : IQueryable<'T>, [<Optional; EnumeratorCancellation>] cancellationToken : CancellationToken) =
-        query.ToFeedIterator().AsContinuableAsyncEnumerable<'T> (cancellationToken)
+    member inline query.MapAsyncEnumerable<'T, 'Result> (mapping : IterationState<'T> -> 'T -> 'Result, [<Optional; EnumeratorCancellation>] cancellationToken : CancellationToken) =
+        query.ToFeedIterator().MapAsyncEnumerable<'T, 'Result> (mapping, cancellationToken)
 
-    [<Extension; CompiledName "AsContinuableAsyncEnumerable">]
-    static member inline AsContinuableAsyncEnumerable<'T> (query : IQueryable<'T>, desiredItemCount, [<Optional; EnumeratorCancellation>] cancellationToken : CancellationToken) =
-        query.ToFeedIterator().AsContinuableAsyncEnumerable<'T> (desiredItemCount, cancellationToken)
+    member inline query.MapFoldAsyncEnumerable<'T, 'State, 'Result> (mapping : IterationState<'T> -> 'State -> 'T -> struct ('Result * 'State), state : 'State, [<Optional; EnumeratorCancellation>] cancellationToken : CancellationToken) =
+        query.ToFeedIterator().MapFoldAsyncEnumerable<'T, 'State, 'Result> (mapping, state, cancellationToken)
