@@ -17,7 +17,14 @@ type IterationState<'T> = {
     ContinuationToken : string | null
     /// The current page.
     Page : FeedResponse<'T>
-}
+    /// A flag to stop the iteration.
+    StopRef : bool Ref
+} with
+
+    member this.ShouldStop
+        with get () = this.StopRef.Value
+        and set v = this.StopRef.Value <- v
+    member this.Stop () = this.StopRef.Value <- true
 
 // See https://github.com/Azure/azure-cosmos-dotnet-v3/issues/903
 type FeedIterator<'T> with
@@ -43,8 +50,9 @@ type FeedIterator<'T> with
                 i = 0
                 ContinuationToken = null
                 Page = Unchecked.defaultof<_>
+                StopRef = ref false
             }
-            while iterator.HasMoreResults do
+            while iterator.HasMoreResults && not iterationState.ShouldStop do
                 cancellationToken.ThrowIfCancellationRequested ()
                 let! page = iterator.ReadNextAsync (cancellationToken)
                 iterationState <- { iterationState with i = 0; Page = page }
@@ -85,8 +93,9 @@ type FeedIterator<'T> with
                 i = 0
                 ContinuationToken = null
                 Page = Unchecked.defaultof<_>
+                StopRef = ref false
             }
-            while iterator.HasMoreResults do
+            while iterator.HasMoreResults && not iterationState.ShouldStop do
                 cancellationToken.ThrowIfCancellationRequested ()
                 let! page = iterator.ReadNextAsync (cancellationToken)
                 iterationState <- { iterationState with i = 0; Page = page }
